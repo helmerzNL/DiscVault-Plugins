@@ -1,0 +1,43 @@
+{
+  "id": "barcode_hub",
+  "name": "Barcode Hub",
+  "version": "1.0.0",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "categories": ["metadata_source", "metadata_bootstrap"],
+  "capabilities": [
+    "search_barcode",
+    "title_hint",
+    "bootstrap_lookup"
+  ],
+  "replacesPlugins": ["upcitemdb"],
+  "bootstrap": {
+    "metadataSource": true,
+    "onlyWhen": "public_barcode_lookup",
+    "role": "barcode_title_hint"
+  },
+  "requiresSecrets": false,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {
+    "secrets": [
+      {
+        "name": "eanSearchToken",
+        "label": "EAN-Search API token",
+        "type": "password",
+        "required": false,
+        "description": "Optional token from ean-search.org. Adds a 1.2B-barcode database (good for EU/PAL releases) on top of the free UPCItemDB lookup."
+      },
+      {
+        "name": "barcodeLookupKey",
+        "label": "Barcode Lookup API key",
+        "type": "password",
+        "required": false,
+        "description": "Optional API key from barcodelookup.com. Adds an extra international barcode database with brand and category data."
+      }
+    ]
+  },
+  "orderIndex": 30,
+  "entitlements": {
+    "source_use": "metadata.source.barcode_hub.use"
+  }
+}

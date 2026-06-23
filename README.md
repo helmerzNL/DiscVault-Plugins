@@ -12,6 +12,7 @@ provides common logic used by the `import_*` plug-ins.
 
 | Plug-in | ID | Version | Categories |
 | --- | --- | --- | --- |
+| Barcode Hub | `barcode_hub` | 1.0.0 | metadata_source, metadata_bootstrap |
 | Blu-ray.com | `bluray_com` | 1.0.2 | metadata_source |
 | DVDFr | `dvd_fr` | 1.0.0 | metadata_source |
 | DiscVault API Access | `discvault_api` | 1.1.0 | system, api |
@@ -26,7 +27,7 @@ provides common logic used by the `import_*` plug-ins.
 | Plex | `plex` | 1.0.1 | digital_media_source, personal_list_source |
 | TMDb | `tmdb` | 1.0.2 | metadata_source |
 | Trakt | `trakt` | 1.0.2 | personal_list_source |
-| UPCItemDB | `upcitemdb` | 1.0.2 | metadata_source, metadata_bootstrap |
+| UPCItemDB | `upcitemdb` | 1.0.2 | metadata_source, metadata_bootstrap _(superseded by `barcode_hub`)_ |
 | Wikidata | `wikidata` | 1.0.0 | metadata_source |
 
 ## Plug-in layout
@@ -38,3 +39,20 @@ plugins/
     plugin.py       # implementation
   _collection_import_base.py   # shared helpers for import_* plug-ins
 ```
+
+## Barcode Hub
+
+`barcode_hub` is a multi-source barcode → title hint (bootstrap) plug-in that
+supersedes the standalone `upcitemdb` plug-in. It queries up to three barcode
+databases and merges the results (de-duplicated by title, disc releases ranked
+first):
+
+| Source | API key | Notes |
+| --- | --- | --- |
+| UPCItemDB | none | Free trial lookup, always on. |
+| EAN-Search | optional (`eanSearchToken`) | 1.2B barcodes from [ean-search.org](https://www.ean-search.org), strong on EU/PAL releases. |
+| Barcode Lookup | optional (`barcodeLookupKey`) | International database from [barcodelookup.com](https://www.barcodelookup.com), adds brand/category data. |
+
+Without keys it behaves exactly like UPCItemDB. Add either key in the plug-in
+settings to widen barcode coverage for discs that UPCItemDB does not know.
+
