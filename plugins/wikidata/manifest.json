@@ -1,0 +1,32 @@
+{
+  "id": "wikidata",
+  "name": "Wikidata",
+  "version": "1.0.0",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "categories": ["metadata_source"],
+  "capabilities": [
+    "search_title",
+    "lookup_external_id",
+    "movie_details"
+  ],
+  "requiresSecrets": false,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {
+    "settings": [
+      {
+        "name": "language",
+        "label": "Preferred language",
+        "type": "text",
+        "required": false,
+        "placeholder": "en",
+        "description": "Wikidata label language for titles, genres, cast and crew (ISO code, e.g. en, nl, fr, de). Falls back to English."
+      }
+    ],
+    "secrets": []
+  },
+  "orderIndex": 15,
+  "entitlements": {
+    "source_use": "metadata.source.wikidata.use"
+  }
+}

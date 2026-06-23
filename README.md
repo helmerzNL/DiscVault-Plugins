@@ -27,6 +27,7 @@ provides common logic used by the `import_*` plug-ins.
 | TMDb | `tmdb` | 1.0.2 | metadata_source |
 | Trakt | `trakt` | 1.0.2 | personal_list_source |
 | UPCItemDB | `upcitemdb` | 1.0.2 | metadata_source, metadata_bootstrap |
+| Wikidata | `wikidata` | 1.0.0 | metadata_source |
 
 ## Plug-in layout
 
