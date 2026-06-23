@@ -12,7 +12,7 @@ provides common logic used by the `import_*` plug-ins.
 
 | Plug-in | ID | Version | Categories |
 | --- | --- | --- | --- |
-| Blu-ray.com | `bluray_com` | 1.0.1 | metadata_source |
+| Blu-ray.com | `bluray_com` | 1.0.2 | metadata_source |
 | DVDFr | `dvd_fr` | 1.0.0 | metadata_source |
 | DiscVault API Access | `discvault_api` | 1.1.0 | system, api |
 | DiscVault MCP Server | `discvault_mcp` | 1.0.0 | system, mcp |

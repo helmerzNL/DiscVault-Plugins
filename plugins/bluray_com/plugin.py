@@ -268,7 +268,7 @@ def _candidate_members_from_search(title, preferred_format="", current_url=""):
         members.append(
             {
                 "title": member_title,
-                "format": _normalize_format(url) or _normalize_format(preferred_format),
+                "format": _format_from_url_title_text(url, member_title, "") or _normalize_format(preferred_format),
                 "source": "Blu-ray.com candidate search",
                 "sourceUrl": url,
                 "sourceRef": match.group(1) if match else url,
@@ -440,7 +440,7 @@ def search_title(payload, context=None):
                 "id": match.group(2) if match else url,
                 "title": raw_title,
                 "sourceUrl": url,
-                "format": _normalize_format(url),
+                "format": _format_from_url_title_text(url, raw_title, ""),
             }
         )
     return {"status": "hit" if items else "miss", "provider": "bluray_com", "items": items}
