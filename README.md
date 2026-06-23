@@ -10,25 +10,47 @@ provides common logic used by the `import_*` plug-ins.
 
 ## Available plug-ins
 
-| Plug-in | ID | Version | Categories |
-| --- | --- | --- | --- |
-| Barcode Hub | `barcode_hub` | 1.1.0 | metadata_source, metadata_bootstrap |
-| Blu-ray.com | `bluray_com` | 1.0.2 | metadata_source |
-| DVDFr | `dvd_fr` | 1.0.0 | metadata_source |
-| DiscVault API Access | `discvault_api` | 1.1.0 | system, api |
-| DiscVault MCP Server | `discvault_mcp` | 1.0.0 | system, mcp |
-| Blu-ray.com Import | `import_bluray_com` | 1.2.0 | import_source |
-| CLZ Movies Web Import | `import_clz_movies` | 1.2.0 | import_source |
-| Letterboxd Import | `import_letterboxd` | 1.2.0 | import_source |
-| My Movies.dk Import | `import_mymovies_dk` | 1.2.0 | import_source |
-| Jellyfin | `jellyfin` | 1.0.1 | digital_media_source, personal_list_source |
-| MovieVault 26 | `movievault_26` | 1.4.0 | metadata_source, metadata_receiver |
-| OMDb | `omdb` | 1.0.0 | metadata_source |
-| Plex | `plex` | 1.0.1 | digital_media_source, personal_list_source |
-| TMDb | `tmdb` | 1.0.2 | metadata_source |
-| Trakt | `trakt` | 1.0.2 | personal_list_source |
-| UPCItemDB | `upcitemdb` | 1.0.2 | metadata_source, metadata_bootstrap _(superseded by `barcode_hub`)_ |
-| Wikidata | `wikidata` | 1.0.0 | metadata_source |
+Plug-ins are listed in the same order DiscVault shows them: grouped by role and
+sorted by each plug-in's `orderIndex` within the group (lower numbers appear
+first). The `orderIndex` bands map to the groups — `10-99` metadata sources,
+`100-199` library & list sources, `200-299` import sources, `900+` system.
+
+### Metadata sources (`10-99`)
+
+| Order | Plug-in | ID | Version | Categories |
+| --- | --- | --- | --- | --- |
+| 10 | TMDb | `tmdb` | 1.0.2 | metadata_source |
+| 15 | Wikidata | `wikidata` | 1.0.0 | metadata_source |
+| 20 | OMDb | `omdb` | 1.0.0 | metadata_source |
+| 30 | Barcode Hub | `barcode_hub` | 1.1.0 | metadata_source, metadata_bootstrap |
+| 30 | UPCItemDB | `upcitemdb` | 1.0.2 | metadata_source, metadata_bootstrap _(superseded by `barcode_hub`)_ |
+| 40 | Blu-ray.com | `bluray_com` | 1.0.2 | metadata_source |
+| 45 | DVDFr | `dvd_fr` | 1.0.0 | metadata_source |
+| 51 | MovieVault 26 | `movievault_26` | 1.4.0 | metadata_source, metadata_receiver |
+
+### Library & personal-list sources (`100-199`)
+
+| Order | Plug-in | ID | Version | Categories |
+| --- | --- | --- | --- | --- |
+| 110 | Plex | `plex` | 1.0.1 | digital_media_source, personal_list_source |
+| 120 | Jellyfin | `jellyfin` | 1.0.1 | digital_media_source, personal_list_source |
+| 130 | Trakt | `trakt` | 1.0.2 | personal_list_source |
+
+### Import sources (`200-299`)
+
+| Order | Plug-in | ID | Version | Categories |
+| --- | --- | --- | --- | --- |
+| 210 | My Movies.dk Import | `import_mymovies_dk` | 1.2.0 | import_source |
+| 220 | Letterboxd Import | `import_letterboxd` | 1.2.0 | import_source |
+| 230 | Blu-ray.com Import | `import_bluray_com` | 1.2.0 | import_source |
+| 240 | CLZ Movies Web Import | `import_clz_movies` | 1.2.0 | import_source |
+
+### System (`900+`)
+
+| Order | Plug-in | ID | Version | Categories |
+| --- | --- | --- | --- | --- |
+| 910 | DiscVault MCP Server | `discvault_mcp` | 1.0.0 | system, mcp |
+| 920 | DiscVault API Access | `discvault_api` | 1.1.0 | system, api |
 
 ## Plug-in layout
 
