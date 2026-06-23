@@ -12,7 +12,7 @@ provides common logic used by the `import_*` plug-ins.
 
 | Plug-in | ID | Version | Categories |
 | --- | --- | --- | --- |
-| Barcode Hub | `barcode_hub` | 1.0.0 | metadata_source, metadata_bootstrap |
+| Barcode Hub | `barcode_hub` | 1.1.0 | metadata_source, metadata_bootstrap |
 | Blu-ray.com | `bluray_com` | 1.0.2 | metadata_source |
 | DVDFr | `dvd_fr` | 1.0.0 | metadata_source |
 | DiscVault API Access | `discvault_api` | 1.1.0 | system, api |
@@ -50,9 +50,11 @@ first):
 | Source | API key | Notes |
 | --- | --- | --- |
 | UPCItemDB | none | Free trial lookup, always on. |
-| EAN-Search | optional (`eanSearchToken`) | 1.2B barcodes from [ean-search.org](https://www.ean-search.org), strong on EU/PAL releases. |
-| Barcode Lookup | optional (`barcodeLookupKey`) | International database from [barcodelookup.com](https://www.barcodelookup.com), adds brand/category data. |
+| Go-UPC | none | Public-page scrape of [go-upc.com](https://go-upc.com), always on; good brand/category data. |
+| EAN-Search | optional (`eanSearchToken`) | 1.2B barcodes from [ean-search.org](https://www.ean-search.org); free accounts get a small daily quota (~100-250/day), strong on EU/PAL releases. |
+| Barcode Lookup | optional (`barcodeLookupKey`) | International database from [barcodelookup.com](https://www.barcodelookup.com) via its **API key** (the public site is bot-protected and cannot be scraped). |
 
-Without keys it behaves exactly like UPCItemDB. Add either key in the plug-in
-settings to widen barcode coverage for discs that UPCItemDB does not know.
+Without keys it runs UPCItemDB + Go-UPC (both free, no key). Add an EAN-Search
+token (free tier works) or Barcode Lookup key in the plug-in settings to widen
+barcode coverage for discs the free sources do not know.
 

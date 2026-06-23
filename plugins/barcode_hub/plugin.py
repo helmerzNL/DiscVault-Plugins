@@ -3,11 +3,18 @@ import re
 import requests
 
 UPCITEMDB_URL = "https://api.upcitemdb.com/prod/trial/lookup"
+GO_UPC_URL = "https://go-upc.com/search"
 EAN_SEARCH_URL = "https://api.ean-search.org/api"
 BARCODELOOKUP_URL = "https://api.barcodelookup.com/v3/products"
 
 PROVIDER_ID = "barcode_hub"
 PROVIDER_LABEL = "Barcode Hub"
+
+_BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 _FORMAT_TOKENS = re.compile(
     r"\s*[\[(]?\s*(?:4k(?:\s*ultra)?\s*hd|ultra\s*hd|uhd|blu[- ]?ray|bd|dvd|vhs)\s*[\])]?",
@@ -37,9 +44,9 @@ def _detect_format(value):
     text = str(value or "").lower()
     if re.search(r"4k|uhd|ultra[\s-]*hd", text):
         return "4K UHD"
-    if re.search(r"blu[- ]?ray", text):
+    if re.search(r"blu[- ]?rays?\b", text):
         return "Blu-ray"
-    if re.search(r"\bdvd\b", text):
+    if re.search(r"\bdvds?\b", text):
         return "DVD"
     return ""
 
@@ -91,6 +98,55 @@ def _query_upcitemdb(barcode):
             )
         )
     return results
+
+
+def _html_unescape(value):
+    return (
+        str(value or "")
+        .replace("&amp;", "&")
+        .replace("&#39;", "'")
+        .replace("&quot;", '"')
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .strip()
+    )
+
+
+def _query_go_upc(barcode):
+    response = requests.get(
+        GO_UPC_URL, params={"q": barcode}, headers=_BROWSER_HEADERS, timeout=12
+    )
+    response.raise_for_status()
+    html = response.text
+    name_match = re.search(r'<h1[^>]*class="product-name"[^>]*>(.*?)</h1>', html, re.I | re.S)
+    if not name_match:
+        return []
+    name = _html_unescape(re.sub(r"<[^>]+>", "", name_match.group(1)))
+    if not name or name.lower() == "product not found":
+        return []
+    meta = {}
+    for row in re.finditer(
+        r'<td[^>]*class="metadata-label"[^>]*>(.*?)</td>\s*<td[^>]*>(.*?)</td>', html, re.I | re.S
+    ):
+        label = _html_unescape(re.sub(r"<[^>]+>", "", row.group(1))).lower()
+        value = _html_unescape(re.sub(r"<[^>]+>", "", row.group(2)))
+        if label:
+            meta[label] = value
+    image_match = re.search(r'<img[^>]+src="(https://go-upc\.s3\.amazonaws\.com/images/[^"]+)"', html, re.I)
+    category = meta.get("category", "")
+    item = _item(
+        data_source="go_upc",
+        source_label="Go-UPC",
+        title=name,
+        barcode=barcode,
+        brand=meta.get("brand"),
+        category=category,
+        source_url=f"https://go-upc.com/search?q={barcode}",
+        image_url=image_match.group(1) if image_match else "",
+    )
+    if not item["detectedFormat"]:
+        item["detectedFormat"] = _detect_format(category)
+    return [item]
 
 
 def _query_ean_search(barcode, token):
@@ -155,7 +211,7 @@ def _query_barcodelookup(barcode, key):
     return results
 
 
-_SOURCE_PRIORITY = {"upcitemdb": 0, "ean_search": 1, "barcodelookup": 2}
+_SOURCE_PRIORITY = {"upcitemdb": 0, "go_upc": 1, "ean_search": 2, "barcodelookup": 3}
 
 
 def _merge_items(items):
@@ -192,6 +248,7 @@ def _merge_items(items):
 def _provider_status(context):
     return {
         "upcitemdb": True,
+        "go_upc": True,
         "ean_search": bool(_ean_search_token(context)),
         "barcodelookup": bool(_barcodelookup_key(context)),
     }
@@ -216,7 +273,10 @@ def search_barcode(payload, context=None):
     token = _ean_search_token(context)
     blk = _barcodelookup_key(context)
 
-    providers = [("upcitemdb", lambda: _query_upcitemdb(barcode))]
+    providers = [
+        ("upcitemdb", lambda: _query_upcitemdb(barcode)),
+        ("go_upc", lambda: _query_go_upc(barcode)),
+    ]
     if token:
         providers.append(("ean_search", lambda: _query_ean_search(barcode, token)))
     if blk:

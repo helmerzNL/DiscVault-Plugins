@@ -1,7 +1,7 @@
 {
   "id": "barcode_hub",
   "name": "Barcode Hub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "manifestVersion": 1,
   "discVaultPluginApi": "next-1",
   "categories": ["metadata_source", "metadata_bootstrap"],
@@ -25,7 +25,7 @@
         "label": "EAN-Search API token",
         "type": "password",
         "required": false,
-        "description": "Optional token from ean-search.org. Adds a 1.2B-barcode database (good for EU/PAL releases) on top of the free UPCItemDB lookup."
+        "description": "Optional token from ean-search.org. Free accounts allow a small daily quota (~100-250 lookups/day); adds a 1.2B-barcode database (good for EU/PAL releases) on top of the free UPCItemDB and Go-UPC lookups."
       },
       {
         "name": "barcodeLookupKey",
