@@ -41,6 +41,22 @@ def _is_release_url(value):
     return bool(re.search(r"blu-ray\.com/(?:movies|dvd)/", value or "", flags=re.I))
 
 
+def _url_matches_section(url, section):
+    """Keep only release URLs that belong to the queried section.
+
+    Blu-ray.com serves DVD releases under ``/dvd/`` and Blu-ray / 4K UHD
+    releases under ``/movies/``. A ``dvdmovies`` quicksearch can still surface
+    ``/movies/`` cross-links (and vice versa); accepting those makes a DVD pick
+    up a Blu-ray release page, which the merge policy then blocks on a format
+    mismatch. Filtering per section keeps the format of the chosen release in
+    sync with the section that was searched.
+    """
+    value = str(url or "").lower()
+    if str(section or "").strip().lower() == "dvdmovies":
+        return "/dvd/" in value
+    return "/movies/" in value
+
+
 def _sections(query, preferred_format=""):
     preferred = _normalize_format(preferred_format)
     if preferred == "DVD":
@@ -56,9 +72,9 @@ def _sections(query, preferred_format=""):
 def _release_urls(query, preferred_format="", limit=8):
     urls = []
 
-    def add_url(value):
+    def add_url(value, section):
         value = _abs_url(str(value or "").strip().strip("'\""))
-        if _is_release_url(value) and value not in urls:
+        if _is_release_url(value) and _url_matches_section(value, section) and value not in urls:
             urls.append(value)
 
     for section in _sections(query, preferred_format):
@@ -73,7 +89,7 @@ def _release_urls(query, preferred_format="", limit=8):
                 match = re.search(r"var\s+urls\s*=\s*new\s+Array\(([^)]+)\)", response.text)
                 if match:
                     for item in match.group(1).split(","):
-                        add_url(item)
+                        add_url(item, section)
             if urls:
                 break
         except Exception:
@@ -91,7 +107,7 @@ def _release_urls(query, preferred_format="", limit=8):
                 if response.status_code == 200 and BeautifulSoup is not None:
                     soup = BeautifulSoup(response.text, "html.parser")
                     for link in soup.select('a[href*="/movies/"], a[href*="/dvd/"]'):
-                        add_url(link.get("href") or "")
+                        add_url(link.get("href") or "", section)
                         if len(urls) >= limit:
                             break
                 if urls:
@@ -105,20 +121,54 @@ def _clean_text(value):
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
+_RELEASE_FORMAT_WORDS = (
+    r"4k|ultra\s*hd|uhd|blu[- ]?ray|dvd|hd\s*dvd|laser\s*disc|digital|3d|vhs|"
+    r"steel\s*book|steelbook|limited|collector'?s?|special|deluxe|ultimate|"
+    r"anniversary|remaster(?:ed)?|edition|combo|pack|slip(?:cover|case)?|"
+    r"digibook|mediabook|box\s*set|import|region"
+)
+_RELEASE_COUNTRY_WORDS = (
+    r"france|french|germany|german|italy|italian|spain|spanish|uk|u\.k\.|"
+    r"united\s+kingdom|england|british|great\s+britain|usa?|u\.s\.a?\.?|"
+    r"united\s+states|american|canada|canadian|netherlands|dutch|japan|japanese|"
+    r"korea|korean|sweden|swedish|denmark|danish|norway|norwegian|finland|finnish|"
+    r"australia|australian|nordic|scandinavia(?:n)?|europe(?:an)?|austria|austrian|"
+    r"poland|polish|portugal|portuguese|russia|russian|china|chinese|belgium|belgian"
+)
+# Trailing bracketed group that is purely format/region metadata, e.g.
+# "(4K Ultra HD + Blu-ray)", "(France)", "[UK Import]".
+_RELEASE_META_TAIL_RE = re.compile(
+    r"\s*[\(\[]\s*[^\(\)\[\]]*\b(?:" + _RELEASE_FORMAT_WORDS + r"|" + _RELEASE_COUNTRY_WORDS
+    + r")\b[^\(\)\[\]]*[\)\]]\s*$",
+    re.I,
+)
+# Bare trailing format token, e.g. "4K Blu-ray", "Ultra HD Blu-ray 3D", "DVD".
+_RELEASE_FORMAT_TAIL_RE = re.compile(
+    r"\s+(?:(?:4K\s*)?(?:Ultra\s*HD\s*)?Blu[- ]?ray(?:\s*3D)?(?:\s*\+\s*Blu[- ]?ray)?"
+    r"|4K(?:\s*Ultra\s*HD)?|Ultra\s*HD|HD\s*DVD|DVD|Laser\s*Disc|VCD/SVCD|Digital|3D|Review)\s*$",
+    re.I,
+)
+
+
 def _movie_title_from_release_title(value):
     title = _clean_text(value)
     if not title:
         return ""
+    # Drop a trailing year and anything following it ("Title (2010) Blu-ray").
     title = re.sub(r"\s+\((\d{4})\).*$", "", title).strip()
-    title = re.sub(r"\s+\((?:SteelBook|Steelbook|France|Germany|Italy|Spain|UK|US|USA|Canada|Netherlands|Import)\)\s*$", "", title, flags=re.I).strip()
-    title = re.sub(r"\s+\((?:SteelBook|Steelbook|France|Germany|Italy|Spain|UK|US|USA|Canada|Netherlands|Import)\)\s*$", "", title, flags=re.I).strip()
-    title = re.sub(
-        r"\s+(?:4K\s*)?(?:Ultra\s*HD\s*)?Blu[- ]?ray(?:\s*3D)?(?:\s*\+\s*Blu[- ]?ray)?\s*(?:Review)?\s*$",
-        "",
-        title,
-        flags=re.I,
-    ).strip()
-    title = re.sub(r"\s+(?:DVD|HD DVD|LaserDisc|VCD/SVCD|Digital|Review)\s*$", "", title, flags=re.I).strip()
+    prev = None
+    while prev != title and title:
+        prev = title
+        # Peel trailing format/region brackets, e.g. "(4K Ultra HD + Blu-ray)"
+        # then "(France)", exposing the bare format token underneath.
+        stripped = _RELEASE_META_TAIL_RE.sub("", title).strip()
+        if stripped != title:
+            title = stripped
+            continue
+        # Peel a bare trailing format token like "4K Blu-ray" / "DVD".
+        stripped = _RELEASE_FORMAT_TAIL_RE.sub("", title).strip()
+        if stripped != title:
+            title = stripped
     return title or _clean_text(value)
 
 
@@ -129,8 +179,19 @@ def _member_title_from_url(value):
     return _movie_title_from_release_title(re.sub(r"[-_]+", " ", match.group(1)).strip())
 
 
-def _is_box_set_candidate(title, page_text):
-    text = f"{title or ''} {page_text or ''}"[:5000].casefold()
+def _is_box_set_candidate(title, page_text=None):
+    """True only when the scanned product's own *release title* self-identifies as a box-set.
+
+    Earlier this scanned arbitrary page text (``title + page_text``), so any single-disc
+    release page that merely *mentioned* a trilogy/collection/box-set elsewhere — related
+    products, "customers also bought", recommendations — was misclassified as a box-set.
+    A barcode for a single disc (e.g. "The Dark Knight Blu-ray", whose page links to
+    "The Dark Knight Trilogy") must never be turned into a box-set. Only the release/product
+    title is authoritative here; ``page_text`` is accepted for backward compatibility but
+    deliberately ignored. Genuine box-set pages that enumerate their discs are still detected
+    independently via :func:`_extract_explicit_box_set_members`.
+    """
+    text = str(title or "").casefold()
     markers = (
         "box set",
         "boxset",
@@ -268,7 +329,7 @@ def _candidate_members_from_search(title, preferred_format="", current_url=""):
         members.append(
             {
                 "title": member_title,
-                "format": _format_from_url_title_text(url, member_title, "") or _normalize_format(preferred_format),
+                "format": _normalize_format(url) or _normalize_format(preferred_format),
                 "source": "Blu-ray.com candidate search",
                 "sourceUrl": url,
                 "sourceRef": match.group(1) if match else url,
@@ -362,13 +423,20 @@ def _parse_page(url):
                 video = value
     page_text = soup.get_text(" ", strip=True)
     release_format = _format_from_url_title_text(url, title, page_text)
-    is_box_set_candidate = _is_box_set_candidate(title, page_text[:5000])
+    # Box-set classification keys ONLY on the scanned product's own release title.
+    # Scanning arbitrary page text misclassified single-disc pages that merely mention a
+    # trilogy/collection (e.g. related products) as box-sets. Genuine box-set pages that
+    # enumerate their discs in the explicit "bundle includes the following titles" block are
+    # still detected below, regardless of the title heuristic.
+    is_box_set_candidate = _is_box_set_candidate(title)
     box_set_members = _extract_explicit_box_set_members(
         soup,
         current_url=url,
         parent_title=title,
         release_format=release_format,
-    ) if is_box_set_candidate else []
+    ) if (is_box_set_candidate or _has_explicit_member_text(soup)) else []
+    if box_set_members and not is_box_set_candidate:
+        is_box_set_candidate = True
     year = ""
     match = re.search(r"\((\d{4})\)", title)
     if match:
@@ -440,7 +508,7 @@ def search_title(payload, context=None):
                 "id": match.group(2) if match else url,
                 "title": raw_title,
                 "sourceUrl": url,
-                "format": _format_from_url_title_text(url, raw_title, ""),
+                "format": _normalize_format(url),
             }
         )
     return {"status": "hit" if items else "miss", "provider": "bluray_com", "items": items}
