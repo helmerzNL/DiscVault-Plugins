@@ -47,8 +47,8 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(entry["id"], manifest["id"])
         self.assertEqual(entry["version"], manifest["version"])
         self.assertEqual(entry["minimumDiscVaultVersion"], manifest["minimumDiscVaultVersion"])
-        self.assertEqual(entry["archive"], "movievault_v2_1.0.2.zip")
-        self.assertEqual(entry["releaseTag"], "movievault_v2-v1.0.2")
+        self.assertEqual(entry["archive"], "movievault_v2_1.0.3.zip")
+        self.assertEqual(entry["releaseTag"], "movievault_v2-v1.0.3")
 
 
 if __name__ == "__main__":
