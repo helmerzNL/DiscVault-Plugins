@@ -68,6 +68,7 @@ def main() -> int:
     entry.update(
         {
             "version": manifest["version"],
+            "minimumDiscVaultVersion": manifest.get("minimumDiscVaultVersion"),
             "archive": f"{args.plugin}_{manifest['version']}.zip",
             "checksum": f"{args.plugin}_{manifest['version']}.zip.sha256",
             "releaseTag": f"{args.plugin}-v{manifest['version']}",
