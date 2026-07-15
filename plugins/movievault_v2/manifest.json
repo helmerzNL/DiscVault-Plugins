@@ -1,0 +1,92 @@
+{
+  "id": "movievault_v2",
+  "name": "MovieVault v2",
+  "version": "1.0.0",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "minimumDiscVaultVersion": "26.4.40",
+  "categories": ["metadata_source"],
+  "capabilities": [
+    "health_check",
+    "sync_index",
+    "search_barcode",
+    "search_title",
+    "movie_details",
+    "box_set_candidates"
+  ],
+  "requiresSecrets": false,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {
+    "settings": [
+      {
+        "name": "origin",
+        "label": "MovieVault v2 origin",
+        "type": "text",
+        "required": true,
+        "placeholder": "https://movievault.example",
+        "description": "Origin of the MovieVault v2 service. Do not include a path."
+      },
+      {
+        "name": "syncIntervalHours",
+        "label": "Sync interval (hours)",
+        "type": "number",
+        "required": false,
+        "default": 6,
+        "minimum": 1,
+        "maximum": 168
+      },
+      {
+        "name": "staleThresholdHours",
+        "label": "Stale threshold (hours)",
+        "type": "number",
+        "required": false,
+        "default": 48,
+        "minimum": 1,
+        "maximum": 720
+      },
+      {
+        "name": "requestTimeoutSeconds",
+        "label": "Request timeout (seconds)",
+        "type": "number",
+        "required": false,
+        "default": 20,
+        "minimum": 2,
+        "maximum": 120
+      },
+      {
+        "name": "maximumArtifactBytes",
+        "label": "Maximum sync artifact size (bytes)",
+        "type": "number",
+        "required": false,
+        "default": 134217728,
+        "minimum": 1024,
+        "maximum": 536870912
+      },
+      {
+        "name": "maximumResults",
+        "label": "Maximum lookup results",
+        "type": "number",
+        "required": false,
+        "default": 12,
+        "minimum": 1,
+        "maximum": 50
+      },
+      {
+        "name": "bucketFallback",
+        "label": "Allow anonymous bucket fallback",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Query one anonymous hash bucket only when the local index misses."
+      }
+    ],
+    "secrets": []
+  },
+  "defaultEnabled": false,
+  "orderIndex": 52,
+  "premiumFeatureKey": "metadata.source.movievault.use",
+  "entitlements": {
+    "source_use": "metadata.source.movievault.use",
+    "source_bulk": "metadata.source.movievault.bulk"
+  }
+}

@@ -1,0 +1,46 @@
+name: Publish plugin release
+
+on:
+  push:
+    tags:
+      - "*-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Validate tag and build
+        id: package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python -m unittest discover -s tests
+          python scripts/check_secrets.py
+          python scripts/check_versions.py
+          plugin="${TAG%-v*}"
+          version="${TAG##*-v}"
+          manifest_version="$(python -c "import json; print(json.load(open('plugins/$plugin/manifest.json'))['version'])")"
+          test "$version" = "$manifest_version"
+          python scripts/build_plugin.py --plugin "$plugin"
+          echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Publish immutable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PLUGIN: ${{ steps.package.outputs.plugin }}
+          VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          gh release create "$TAG" \
+            "dist/${PLUGIN}_${VERSION}.zip" \
+            "dist/${PLUGIN}_${VERSION}.zip.sha256" \
+            --verify-tag \
+            --title "${PLUGIN} ${VERSION}" \
+            --notes "Deterministic standalone DiscVault plugin release."
