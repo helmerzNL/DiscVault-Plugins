@@ -1,0 +1,17 @@
+{
+  "catalogVersion": 1,
+  "plugins": [
+    {
+      "id": "movievault_v2",
+      "name": "MovieVault v2",
+      "version": "1.0.3",
+      "minimumDiscVaultVersion": "26.4.43",
+      "archive": "movievault_v2_1.0.3.zip",
+      "checksum": "movievault_v2_1.0.3.zip.sha256",
+      "releaseTag": "movievault_v2-v1.0.3",
+      "categories": [
+        "metadata_source"
+      ]
+    }
+  ]
+}
