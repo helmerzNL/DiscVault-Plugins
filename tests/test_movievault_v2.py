@@ -78,6 +78,18 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(manifest["settingsSchema"]["secrets"], [])
         self.assertNotIn("replacesPlugins", manifest)
         self.assertNotIn("receive_metadata", manifest["capabilities"])
+        settings = {
+            item["name"]: item
+            for item in manifest["settingsSchema"]["settings"]
+        }
+        self.assertEqual(settings["origin"]["default"], "https://movies2.vaultstack.eu")
+        self.assertEqual(settings["origin"]["type"], "url")
+        self.assertEqual(settings["syncIntervalHours"]["default"], 6)
+        self.assertEqual(settings["staleThresholdHours"]["default"], 48)
+        self.assertEqual(settings["requestTimeoutSeconds"]["default"], 20)
+        self.assertEqual(settings["maximumArtifactBytes"]["default"], 134217728)
+        self.assertEqual(settings["maximumResults"]["default"], 12)
+        self.assertFalse(settings["bucketFallback"]["default"])
 
     def test_missing_core_bridge_is_explicit(self):
         for function, payload in (
