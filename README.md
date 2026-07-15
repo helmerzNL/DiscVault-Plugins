@@ -5,7 +5,7 @@ reproducible release packaging live together in this repository.
 
 | Plugin | Version | Minimum DiscVault | Install |
 |---|---:|---:|---|
-| [MovieVault v2](plugins/movievault_v2/README.md) | 1.0.3 | 26.4.43 | Download `movievault_v2_1.0.3.zip` from tag `movievault_v2-v1.0.3` |
+| [MovieVault v2](plugins/movievault_v2/README.md) | 1.0.4 | 26.4.44 | Candidate only; release follows operator acceptance |
 
 Archives contain one root folder named after the plugin. Extract that folder
 into `DISCVAULT_PLUGIN_INSTALL_DIR` (normally `/data/plugins`) and restart or

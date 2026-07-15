@@ -1,10 +1,10 @@
 {
   "id": "movievault_v2",
   "name": "MovieVault v2",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "manifestVersion": 1,
   "discVaultPluginApi": "next-1",
-  "minimumDiscVaultVersion": "26.4.43",
+  "minimumDiscVaultVersion": "26.4.44",
   "categories": [
     "metadata_source"
   ],
@@ -23,9 +23,10 @@
       {
         "name": "origin",
         "label": "MovieVault v2 origin",
-        "type": "text",
+        "type": "url",
         "required": true,
-        "placeholder": "https://movievault.example",
+        "default": "https://movies2.vaultstack.eu",
+        "placeholder": "https://movies2.vaultstack.eu",
         "description": "Origin of the MovieVault v2 service. Do not include a path."
       },
       {
