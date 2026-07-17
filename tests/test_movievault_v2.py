@@ -91,6 +91,18 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(settings["maximumResults"]["default"], 12)
         self.assertFalse(settings["bucketFallback"]["default"])
 
+    def test_manifest_declares_distribution_4_range_and_minimum_core(self):
+        manifest = json.loads((PLUGIN_DIR / "manifest.json").read_text(encoding="utf-8"))
+        contract_range = manifest["distributionContractRange"]
+        self.assertEqual(set(contract_range), {"minimum", "maximum"})
+        self.assertEqual(contract_range["minimum"], "distribution-2")
+        self.assertEqual(contract_range["maximum"], "distribution-4")
+        # 26.4.62 is the first DiscVault core release with strict distribution-4
+        # parsing, bounded anonymous poster caching, and authenticated local
+        # poster routes; older cores never see distribution-4 offered and keep
+        # negotiating distribution-2/-3 exactly as before.
+        self.assertEqual(manifest["minimumDiscVaultVersion"], "26.4.62")
+
     def test_missing_core_bridge_is_explicit(self):
         for function, payload in (
             (plugin.health_check, None),
@@ -176,6 +188,59 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         )
         self.assertEqual(members[0]["filmId"], members[1]["filmId"])
         self.assertNotEqual(members[0]["releaseId"], members[1]["releaseId"])
+
+    def test_local_authenticated_poster_url_passes_through_when_present(self):
+        # DiscVault core resolves "posterUrl" itself (a local, authenticated
+        # asset route) only once a rights-approved primary poster has been
+        # cached from a distribution-4 sync. The plugin must forward it
+        # unchanged and must never fabricate or contact MovieVault for it.
+        release_with_poster = {
+            **RELEASE,
+            "posterUrl": "/api/next/media/assets/40000000-0000-0000-0000-000000000001",
+        }
+        box_set_with_poster = {
+            **BOX_SET,
+            "posterUrl": "/api/next/media/assets/40000000-0000-0000-0000-000000000002",
+        }
+        context = {
+            "movievaultV2Lookup": lambda _request: {
+                "state": "current",
+                "results": [release_with_poster, box_set_with_poster],
+            }
+        }
+
+        release_result = plugin.movie_details({"releaseId": RELEASE["releaseId"]}, context)
+        barcode_result = plugin.search_barcode({"barcode": BARCODE}, context)
+
+        self.assertEqual(
+            release_result["posterUrl"],
+            "/api/next/media/assets/40000000-0000-0000-0000-000000000001",
+        )
+        self.assertEqual(
+            release_result["movie"]["posterUrl"],
+            "/api/next/media/assets/40000000-0000-0000-0000-000000000001",
+        )
+        self.assertTrue(release_result["posterUrl"].startswith("/"))
+        self.assertNotIn("movies2.vaultstack.eu", release_result["posterUrl"])
+        self.assertEqual(barcode_result["posterUrl"], release_result["posterUrl"])
+
+    def test_poster_url_is_absent_without_a_negotiated_v4_contract(self):
+        # v2/v3 records never carry "posterUrl"; the plugin must not invent
+        # one, so the key stays entirely absent from the response.
+        context = {
+            "movievaultV2Lookup": lambda _request: {
+                "state": "current",
+                "results": [RELEASE, BOX_SET],
+            }
+        }
+
+        release_result = plugin.movie_details({"releaseId": RELEASE["releaseId"]}, context)
+        box_set_result = plugin.search_title({"title": "Example Collection"}, context)
+
+        self.assertNotIn("posterUrl", release_result)
+        self.assertFalse(release_result["movie"].get("posterUrl"))
+        for item in box_set_result["items"]:
+            self.assertNotIn("posterUrl", item)
 
     def test_title_and_exact_release_details_use_local_callback(self):
         requests = []

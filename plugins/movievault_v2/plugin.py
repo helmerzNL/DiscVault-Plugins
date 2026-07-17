@@ -89,6 +89,11 @@ def _identifiers(record):
 
 
 def _release_data(record):
+    # DiscVault core already resolves "posterUrl" to a local, authenticated
+    # asset route (never a MovieVault URL) when a rights-approved primary
+    # poster was cached during a distribution-4 sync. Older negotiated
+    # contracts simply omit the field, so this is a passthrough only.
+    poster_url = record.get("posterUrl")
     movie = {
         "title": record.get("canonicalTitle") or record.get("releaseTitle") or "",
         "releaseTitle": record.get("releaseTitle") or "",
@@ -99,6 +104,7 @@ def _release_data(record):
         "language": record.get("languageCode"),
         "regions": [record["region"]] if record.get("region") else [],
         "discCount": record.get("discCount"),
+        "posterUrl": poster_url,
     }
     identifiers = _identifiers(record)
     return {
@@ -115,6 +121,7 @@ def _release_data(record):
             "format": movie["format"],
             "edition": movie["edition"],
             "region": record.get("region"),
+            "posterUrl": poster_url,
             "movie": movie,
             "release": {
                 "id": record.get("releaseId"),
@@ -126,6 +133,7 @@ def _release_data(record):
                 "language": record.get("languageCode"),
                 "releaseDate": record.get("releaseDate"),
                 "discCount": record.get("discCount"),
+                "posterUrl": poster_url,
             },
             "identifiers": identifiers,
             "sourceRef": _source_ref(record),
@@ -191,7 +199,7 @@ def _box_set_proposal(record):
 
 def _box_set_data(record):
     proposal = _box_set_proposal(record)
-    return {
+    data = {
         "provider": PROVIDER_ID,
         "providerLabel": PROVIDER_LABEL,
         "id": record.get("boxSetId"),
@@ -202,6 +210,13 @@ def _box_set_data(record):
         "boxSetProposal": proposal,
         "sourceRef": _source_ref(record),
     }
+    # Local, authenticated asset route resolved by DiscVault core for a
+    # rights-approved primary poster; never a MovieVault URL. Older
+    # negotiated contracts simply omit the field, so this is a passthrough.
+    poster_url = record.get("posterUrl")
+    if poster_url:
+        data["posterUrl"] = poster_url
+    return data
 
 
 def _local_lookup(request, context):
