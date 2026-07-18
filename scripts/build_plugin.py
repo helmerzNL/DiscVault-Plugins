@@ -11,6 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = REPO_ROOT / "plugins"
 EXCLUDED_NAMES = {"__pycache__", ".pytest_cache"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".zip", ".sha256"}
+SHARED_RUNTIME_FILES = {
+    "wikidata_awards.py": {"tmdb"},
+}
 
 
 def plugin_files(plugin_dir: Path) -> list[Path]:
@@ -25,6 +28,38 @@ def plugin_files(plugin_dir: Path) -> list[Path]:
             continue
         files.append(path)
     return sorted(files, key=lambda item: item.relative_to(plugin_dir).as_posix())
+
+
+def discover_plugin_ids() -> list[str]:
+    return sorted(path.parent.name for path in PLUGIN_ROOT.glob("*/manifest.json"))
+
+
+def shared_runtime_files(plugin_id: str) -> list[Path]:
+    names = {
+        name
+        for name, plugin_ids in SHARED_RUNTIME_FILES.items()
+        if plugin_id in plugin_ids
+    }
+    if plugin_id.startswith("import_"):
+        names.add("_collection_import_base.py")
+    return sorted(
+        (PLUGIN_ROOT / name for name in names if (PLUGIN_ROOT / name).is_file()),
+        key=lambda path: path.name,
+    )
+
+
+def archive_files(plugin_id: str, plugin_dir: Path) -> list[tuple[str, Path]]:
+    files = {
+        source.relative_to(plugin_dir).as_posix(): source
+        for source in plugin_files(plugin_dir)
+    }
+    for source in shared_runtime_files(plugin_id):
+        if source.name in files:
+            raise ValueError(
+                f"{plugin_id}: shared runtime file conflicts with plugin file: {source.name}"
+            )
+        files[source.name] = source
+    return sorted(files.items())
 
 
 def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
@@ -42,8 +77,7 @@ def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / f"{plugin_id}_{version}.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as bundle:
-        for source in plugin_files(plugin_dir):
-            relative = source.relative_to(plugin_dir).as_posix()
+        for relative, source in archive_files(plugin_id, plugin_dir):
             info = zipfile.ZipInfo(
                 filename=f"{plugin_id}/{relative}",
                 date_time=(1980, 1, 1, 0, 0, 0),
@@ -61,13 +95,17 @@ def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build a deterministic DiscVault plugin archive.")
-    parser.add_argument("--plugin", required=True)
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--plugin")
+    selection.add_argument("--all", action="store_true", help="Build every discovered plugin.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "dist")
     args = parser.parse_args()
 
-    archive, checksum = build_plugin(args.plugin, args.output_dir)
-    print(archive)
-    print(checksum)
+    plugin_ids = discover_plugin_ids() if args.all else [args.plugin]
+    for plugin_id in plugin_ids:
+        archive, checksum = build_plugin(plugin_id, args.output_dir)
+        print(archive)
+        print(checksum)
     return 0
 
 

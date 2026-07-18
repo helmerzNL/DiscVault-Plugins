@@ -33,8 +33,6 @@ jobs:
         run: python scripts/check_versions.py
       - name: Rebuild deterministic bundle twice
         run: |
-          version="$(python -c "import json; print(json.load(open('plugins/movievault_v2/manifest.json'))['version'])")"
-          python scripts/build_plugin.py --plugin movievault_v2 --output-dir build/first
-          python scripts/build_plugin.py --plugin movievault_v2 --output-dir build/second
-          cmp "build/first/movievault_v2_${version}.zip" "build/second/movievault_v2_${version}.zip"
-          cmp "build/first/movievault_v2_${version}.zip.sha256" "build/second/movievault_v2_${version}.zip.sha256"
+          python scripts/build_plugin.py --all --output-dir build/first
+          python scripts/build_plugin.py --all --output-dir build/second
+          diff --recursive --brief build/first build/second
