@@ -6,6 +6,11 @@ from pathlib import Path
 import re
 import subprocess
 
+try:
+    from scripts.build_plugin import shared_runtime_plugin_ids
+except ModuleNotFoundError:
+    from build_plugin import shared_runtime_plugin_ids
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VERSION_PATTERN = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
@@ -41,11 +46,16 @@ def changed_plugins(base_ref: str) -> set[str]:
     )
     if result.returncode != 0:
         raise ValueError(f"Unable to compare plugin changes with base ref {base_ref}")
-    return {
-        parts[1]
-        for line in result.stdout.splitlines()
-        if len(parts := Path(line).parts) >= 3 and parts[0] == "plugins"
-    }
+    changed = set()
+    for line in result.stdout.splitlines():
+        parts = Path(line).parts
+        if not parts or parts[0] != "plugins":
+            continue
+        if len(parts) >= 3:
+            changed.add(parts[1])
+        elif len(parts) == 2:
+            changed.update(shared_runtime_plugin_ids(parts[1]))
+    return changed
 
 
 def validate_catalog(manifests: dict[str, dict]) -> list[str]:

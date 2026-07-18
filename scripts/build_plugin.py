@@ -11,6 +11,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_ROOT = REPO_ROOT / "plugins"
 EXCLUDED_NAMES = {"__pycache__", ".pytest_cache"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".zip", ".sha256"}
+SHARED_RUNTIME_FILES = {
+    "wikidata_awards.py": {"tmdb"},
+}
 
 
 def discover_plugin_ids(plugin_root: Path = PLUGIN_ROOT) -> list[str]:
@@ -34,6 +37,58 @@ def plugin_files(plugin_dir: Path) -> list[Path]:
     return sorted(files, key=lambda item: item.relative_to(plugin_dir).as_posix())
 
 
+def shared_runtime_plugin_ids(
+    file_name: str,
+    plugin_ids: list[str] | None = None,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> set[str]:
+    consumers = set(SHARED_RUNTIME_FILES.get(file_name, set()))
+    if file_name == "_collection_import_base.py":
+        consumers.update(
+            plugin_id
+            for plugin_id in (plugin_ids or discover_plugin_ids(plugin_root))
+            if plugin_id.startswith("import_")
+        )
+    return consumers
+
+
+def shared_runtime_files(plugin_id: str, plugin_root: Path = PLUGIN_ROOT) -> list[Path]:
+    names = {
+        name
+        for name in (*SHARED_RUNTIME_FILES, "_collection_import_base.py")
+        if plugin_id in shared_runtime_plugin_ids(name, plugin_root=plugin_root)
+    }
+    return sorted(
+        (plugin_root / name for name in names if (plugin_root / name).is_file()),
+        key=lambda path: path.name,
+    )
+
+
+def shared_runtime_relative_paths(plugin_id: str) -> list[str]:
+    return [
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in shared_runtime_files(plugin_id)
+    ]
+
+
+def archive_files(
+    plugin_id: str,
+    plugin_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> list[tuple[str, Path]]:
+    files = {
+        source.relative_to(plugin_dir).as_posix(): source
+        for source in plugin_files(plugin_dir)
+    }
+    for source in shared_runtime_files(plugin_id, plugin_root):
+        if source.name in files:
+            raise ValueError(
+                f"{plugin_id}: shared runtime file conflicts with plugin file: {source.name}"
+            )
+        files[source.name] = source
+    return sorted(files.items())
+
+
 def build_plugin(
     plugin_id: str,
     output_dir: Path,
@@ -53,8 +108,7 @@ def build_plugin(
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / f"{plugin_id}_{version}.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as bundle:
-        for source in plugin_files(plugin_dir):
-            relative = source.relative_to(plugin_dir).as_posix()
+        for relative, source in archive_files(plugin_id, plugin_dir, plugin_root):
             info = zipfile.ZipInfo(
                 filename=f"{plugin_id}/{relative}",
                 date_time=(1980, 1, 1, 0, 0, 0),
@@ -84,7 +138,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build a deterministic DiscVault plugin archive.")
     plugin_selection = parser.add_mutually_exclusive_group(required=True)
     plugin_selection.add_argument("--plugin")
-    plugin_selection.add_argument("--all", action="store_true")
+    plugin_selection.add_argument("--all", action="store_true", help="Build every discovered plugin.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "dist")
     args = parser.parse_args()
 

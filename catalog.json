@@ -2,6 +2,86 @@
   "catalogVersion": 1,
   "plugins": [
     {
+      "id": "tmdb",
+      "name": "TMDb",
+      "version": "1.0.4",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "tmdb_1.0.4.zip",
+      "checksum": "tmdb_1.0.4.zip.sha256",
+      "releaseTag": "tmdb-v1.0.4",
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "wikidata",
+      "name": "Wikidata",
+      "version": "1.0.0",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "wikidata_1.0.0.zip",
+      "checksum": "wikidata_1.0.0.zip.sha256",
+      "releaseTag": "wikidata-v1.0.0",
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "omdb",
+      "name": "OMDb",
+      "version": "1.0.0",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "omdb_1.0.0.zip",
+      "checksum": "omdb_1.0.0.zip.sha256",
+      "releaseTag": "omdb-v1.0.0",
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "barcode_hub",
+      "name": "Barcode Hub",
+      "version": "1.1.0",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "barcode_hub_1.1.0.zip",
+      "checksum": "barcode_hub_1.1.0.zip.sha256",
+      "releaseTag": "barcode_hub-v1.1.0",
+      "categories": ["metadata_source", "metadata_bootstrap"]
+    },
+    {
+      "id": "upcitemdb",
+      "name": "UPCItemDB",
+      "version": "1.0.2",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "upcitemdb_1.0.2.zip",
+      "checksum": "upcitemdb_1.0.2.zip.sha256",
+      "releaseTag": "upcitemdb-v1.0.2",
+      "categories": ["metadata_source", "metadata_bootstrap"]
+    },
+    {
+      "id": "bluray_com",
+      "name": "Blu-ray.com",
+      "version": "1.0.5",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "bluray_com_1.0.5.zip",
+      "checksum": "bluray_com_1.0.5.zip.sha256",
+      "releaseTag": "bluray_com-v1.0.5",
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "dvd_fr",
+      "name": "DVDFr",
+      "version": "1.0.0",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "dvd_fr_1.0.0.zip",
+      "checksum": "dvd_fr_1.0.0.zip.sha256",
+      "releaseTag": "dvd_fr-v1.0.0",
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "movievault_26",
+      "name": "MovieVault 26",
+      "version": "1.8.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "movievault_26_1.8.1.zip",
+      "checksum": "movievault_26_1.8.1.zip.sha256",
+      "releaseTag": "movievault_26-v1.8.1",
+      "categories": ["metadata_source", "metadata_receiver"]
+    },
+    {
       "id": "movievault_v2",
       "name": "MovieVault v2",
       "version": "1.2.1",
@@ -9,9 +89,137 @@
       "archive": "movievault_v2_1.2.1.zip",
       "checksum": "movievault_v2_1.2.1.zip.sha256",
       "releaseTag": "movievault_v2-v1.2.1",
-      "categories": [
-        "metadata_source"
-      ]
+      "categories": ["metadata_source"]
+    },
+    {
+      "id": "plex",
+      "name": "Plex",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "plex_1.0.1.zip",
+      "checksum": "plex_1.0.1.zip.sha256",
+      "releaseTag": "plex-v1.0.1",
+      "categories": ["digital_media_source", "personal_list_source"]
+    },
+    {
+      "id": "jellyfin",
+      "name": "Jellyfin",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "jellyfin_1.0.1.zip",
+      "checksum": "jellyfin_1.0.1.zip.sha256",
+      "releaseTag": "jellyfin-v1.0.1",
+      "categories": ["digital_media_source", "personal_list_source"]
+    },
+    {
+      "id": "trakt",
+      "name": "Trakt",
+      "version": "1.0.3",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "trakt_1.0.3.zip",
+      "checksum": "trakt_1.0.3.zip.sha256",
+      "releaseTag": "trakt-v1.0.3",
+      "categories": ["personal_list_source"]
+    },
+    {
+      "id": "keepa",
+      "name": "Keepa",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "keepa_1.0.1.zip",
+      "checksum": "keepa_1.0.1.zip.sha256",
+      "releaseTag": "keepa-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "priceapi",
+      "name": "PriceAPI",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "priceapi_1.0.1.zip",
+      "checksum": "priceapi_1.0.1.zip.sha256",
+      "releaseTag": "priceapi-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "zavvi",
+      "name": "Zavvi",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "zavvi_1.0.1.zip",
+      "checksum": "zavvi_1.0.1.zip.sha256",
+      "releaseTag": "zavvi-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "arrow",
+      "name": "Arrow",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "arrow_1.0.1.zip",
+      "checksum": "arrow_1.0.1.zip.sha256",
+      "releaseTag": "arrow-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "amazon",
+      "name": "Amazon",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "amazon_1.0.1.zip",
+      "checksum": "amazon_1.0.1.zip.sha256",
+      "releaseTag": "amazon-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "bol",
+      "name": "bol.com",
+      "version": "1.0.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "bol_1.0.1.zip",
+      "checksum": "bol_1.0.1.zip.sha256",
+      "releaseTag": "bol-v1.0.1",
+      "categories": ["price_provider"]
+    },
+    {
+      "id": "import_mymovies_dk",
+      "name": "My Movies.dk Import",
+      "version": "1.2.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "import_mymovies_dk_1.2.1.zip",
+      "checksum": "import_mymovies_dk_1.2.1.zip.sha256",
+      "releaseTag": "import_mymovies_dk-v1.2.1",
+      "categories": ["import_source"]
+    },
+    {
+      "id": "import_letterboxd",
+      "name": "Letterboxd Import",
+      "version": "1.2.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "import_letterboxd_1.2.1.zip",
+      "checksum": "import_letterboxd_1.2.1.zip.sha256",
+      "releaseTag": "import_letterboxd-v1.2.1",
+      "categories": ["import_source"]
+    },
+    {
+      "id": "import_bluray_com",
+      "name": "Blu-ray.com Import",
+      "version": "1.2.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "import_bluray_com_1.2.1.zip",
+      "checksum": "import_bluray_com_1.2.1.zip.sha256",
+      "releaseTag": "import_bluray_com-v1.2.1",
+      "categories": ["import_source"]
+    },
+    {
+      "id": "import_clz_movies",
+      "name": "CLZ Movies Web Import",
+      "version": "1.2.1",
+      "minimumDiscVaultVersion": "26.4.63",
+      "archive": "import_clz_movies_1.2.1.zip",
+      "checksum": "import_clz_movies_1.2.1.zip.sha256",
+      "releaseTag": "import_clz_movies-v1.2.1",
+      "categories": ["import_source"]
     }
   ]
 }

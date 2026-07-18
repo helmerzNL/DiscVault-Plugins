@@ -1,0 +1,23 @@
+{
+  "id": "bluray_com",
+  "name": "Blu-ray.com",
+  "version": "1.0.5",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "minimumDiscVaultVersion": "26.4.63",
+  "categories": ["metadata_source"],
+  "capabilities": [
+    "search_barcode",
+    "search_title",
+    "movie_details",
+    "technical_specs",
+    "box_set_candidates"
+  ],
+  "requiresSecrets": false,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {},
+  "orderIndex": 40,
+  "entitlements": {
+    "source_use": "metadata.source.bluray_com.use"
+  }
+}

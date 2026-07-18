@@ -1,0 +1,44 @@
+{
+  "id": "keepa",
+  "name": "Keepa",
+  "version": "1.0.1",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "minimumDiscVaultVersion": "26.4.63",
+  "categories": ["price_provider"],
+  "capabilities": ["price_check"],
+  "priceProvider": {
+    "hostPatterns": ["amazon."],
+    "productRef": {
+      "type": "amazon_asin"
+    }
+  },
+  "requiresSecrets": true,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {
+    "settings": [
+      {
+        "name": "domainId",
+        "label": "Keepa domain id",
+        "type": "text",
+        "required": false,
+        "placeholder": "4",
+        "description": "Amazon marketplace domain id (NL=4, DE=3, UK=2, FR=5, IT=8, ES=9)."
+      }
+    ],
+    "secrets": [
+      {
+        "name": "apiKey",
+        "label": "Keepa API key",
+        "type": "password",
+        "required": true,
+        "description": "Keepa API key used for Amazon product price checks."
+      }
+    ]
+  },
+  "defaultEnabled": false,
+  "orderIndex": 170,
+  "entitlements": {
+    "source_use": "price_provider.keepa.use"
+  }
+}
