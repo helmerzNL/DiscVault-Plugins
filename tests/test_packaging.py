@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from scripts.build_plugin import build_plugin, discover_plugin_ids
+from scripts.build_plugin import build_all_plugins, build_plugin, discover_plugin_ids
 from scripts.check_versions import changed_plugins
 
 
@@ -35,6 +35,33 @@ class PackagingTests(unittest.TestCase):
             if plugin_id.startswith("import_")
         }
         self.assertEqual(changed, expected_imports | {"tmdb"})
+
+    def test_all_plugins_are_discovered_and_built_in_stable_order(self):
+        with tempfile.TemporaryDirectory() as plugin_dir, tempfile.TemporaryDirectory() as output_dir:
+            plugin_root = Path(plugin_dir)
+            for plugin_id, version in (("zeta", "2.0.0"), ("alpha", "1.0.0")):
+                source = plugin_root / plugin_id
+                source.mkdir()
+                (source / "manifest.json").write_text(
+                    json.dumps({"id": plugin_id, "version": version}),
+                    encoding="utf-8",
+                )
+                (source / "plugin.py").write_text(f'PLUGIN_ID = "{plugin_id}"\n', encoding="utf-8")
+
+            self.assertEqual(discover_plugin_ids(plugin_root), ["alpha", "zeta"])
+            artifacts = build_all_plugins(Path(output_dir), plugin_root)
+
+            self.assertEqual(
+                [archive.name for archive, _checksum in artifacts],
+                ["alpha_1.0.0.zip", "zeta_2.0.0.zip"],
+            )
+            self.assertTrue(all(archive.is_file() for archive, _checksum in artifacts))
+            self.assertTrue(all(checksum.is_file() for _archive, checksum in artifacts))
+
+    def test_plugin_discovery_requires_at_least_one_manifest(self):
+        with tempfile.TemporaryDirectory() as plugin_dir:
+            with self.assertRaisesRegex(ValueError, "No plugin manifests found"):
+                discover_plugin_ids(Path(plugin_dir))
 
     def test_every_plugin_archive_is_byte_reproducible_with_one_plugin_root(self):
         plugin_ids = discover_plugin_ids()
@@ -84,12 +111,18 @@ class PackagingTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with mock.patch("scripts.build_plugin.PLUGIN_ROOT", plugin_root):
-                self.assertEqual(discover_plugin_ids(), ["import_example", "other", "tmdb"])
-                archives = {
-                    plugin_id: build_plugin(plugin_id, Path(output_dir))[0]
-                    for plugin_id in discover_plugin_ids()
-                }
+            self.assertEqual(
+                discover_plugin_ids(plugin_root),
+                ["import_example", "other", "tmdb"],
+            )
+            archives = {
+                plugin_id: build_plugin(
+                    plugin_id,
+                    Path(output_dir),
+                    plugin_root,
+                )[0]
+                for plugin_id in discover_plugin_ids(plugin_root)
+            }
 
             expected_helpers = {
                 "import_example": {"import_example/_collection_import_base.py"},
@@ -138,26 +171,27 @@ class PackagingTests(unittest.TestCase):
                 if previous is not None:
                     sys.modules["wikidata_awards"] = previous
 
-    def test_catalog_matches_all_discovered_manifests_and_release_names(self):
+    def test_catalog_matches_manifest_and_release_names(self):
+        manifests = {
+            path.parent.name: json.loads(path.read_text(encoding="utf-8"))
+            for path in sorted((REPO_ROOT / "plugins").glob("*/manifest.json"))
+        }
         catalog = json.loads((REPO_ROOT / "catalog.json").read_text(encoding="utf-8"))
         entries = {entry["id"]: entry for entry in catalog["plugins"]}
 
-        for plugin_id in discover_plugin_ids():
-            with self.subTest(plugin=plugin_id):
-                manifest = json.loads(
-                    (REPO_ROOT / "plugins" / plugin_id / "manifest.json").read_text(
-                        encoding="utf-8"
-                    )
-                )
+        self.assertEqual(set(entries), set(manifests))
+        for plugin_id, manifest in manifests.items():
+            with self.subTest(plugin_id=plugin_id):
                 entry = entries[plugin_id]
                 self.assertEqual(entry["version"], manifest["version"])
                 self.assertEqual(
                     entry["minimumDiscVaultVersion"],
                     manifest["minimumDiscVaultVersion"],
                 )
+                self.assertEqual(entry["archive"], f"{plugin_id}_{manifest['version']}.zip")
                 self.assertEqual(
-                    entry["archive"],
-                    f"{plugin_id}_{manifest['version']}.zip",
+                    entry["checksum"],
+                    f"{plugin_id}_{manifest['version']}.zip.sha256",
                 )
                 self.assertEqual(
                     entry["releaseTag"],

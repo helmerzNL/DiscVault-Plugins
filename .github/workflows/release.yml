@@ -2,45 +2,79 @@ name: Publish plugin release
 
 on:
   push:
-    tags:
-      - "*-v*"
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: immutable-plugin-releases
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Validate tag and build
-        id: package
-        env:
-          TAG: ${{ github.ref_name }}
+      - name: Validate repository
         run: |
           python -m unittest discover -s tests
           python scripts/check_secrets.py
           python scripts/check_versions.py
-          plugin="${TAG%-v*}"
-          version="${TAG##*-v}"
-          manifest_version="$(python -c "import json; print(json.load(open('plugins/$plugin/manifest.json'))['version'])")"
-          test "$version" = "$manifest_version"
-          python scripts/build_plugin.py --plugin "$plugin"
-          echo "plugin=$plugin" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-      - name: Publish immutable release assets
+      - name: Rebuild every deterministic bundle twice
+        run: |
+          python scripts/build_plugin.py --all --output-dir build/first
+          python scripts/build_plugin.py --all --output-dir build/second
+          diff --recursive --brief build/first build/second
+      - name: Publish or verify immutable releases
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-          PLUGIN: ${{ steps.package.outputs.plugin }}
-          VERSION: ${{ steps.package.outputs.version }}
         run: |
-          gh release create "$TAG" \
-            "dist/${PLUGIN}_${VERSION}.zip" \
-            "dist/${PLUGIN}_${VERSION}.zip.sha256" \
-            --verify-tag \
-            --title "${PLUGIN} ${VERSION}" \
-            --notes "Deterministic standalone DiscVault plugin release."
+          set -euo pipefail
+          jq -r '.plugins | sort_by(.id)[] | [.id, .version, .name] | @tsv' catalog.json |
+          while IFS=$'\t' read -r plugin version plugin_name; do
+            tag="${plugin}-v${version}"
+            archive="${plugin}_${version}.zip"
+            checksum="${archive}.sha256"
+            release_error="$(mktemp)"
+
+            if gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" --silent 2>"$release_error"; then
+              verify_dir="$(mktemp -d)"
+              gh release download "$tag" \
+                --pattern "$archive" \
+                --pattern "$checksum" \
+                --dir "$verify_dir"
+              cmp "build/first/$archive" "$verify_dir/$archive"
+              cmp "build/first/$checksum" "$verify_dir/$checksum"
+              echo "Verified immutable release $tag"
+              rm -rf "$verify_dir"
+            elif grep -q "HTTP 404" "$release_error"; then
+              if git show-ref --verify --quiet "refs/tags/$tag"; then
+                git diff --quiet "$tag" -- "plugins/$plugin" || {
+                  echo "::error::Existing tag $tag does not match plugins/$plugin on main."
+                  exit 1
+                }
+                target_args=(--verify-tag)
+              else
+                target_args=(--target "$GITHUB_SHA")
+              fi
+              gh release create "$tag" \
+                "build/first/$archive" \
+                "build/first/$checksum" \
+                "${target_args[@]}" \
+                --title "${plugin_name} ${version}" \
+                --notes "Deterministic standalone DiscVault plugin release."
+              echo "Published immutable release $tag"
+            else
+              cat "$release_error" >&2
+              exit 1
+            fi
+            rm -f "$release_error"
+          done

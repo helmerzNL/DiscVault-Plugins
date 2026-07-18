@@ -16,6 +16,13 @@ SHARED_RUNTIME_FILES = {
 }
 
 
+def discover_plugin_ids(plugin_root: Path = PLUGIN_ROOT) -> list[str]:
+    plugin_ids = sorted(path.parent.name for path in plugin_root.glob("*/manifest.json"))
+    if not plugin_ids:
+        raise ValueError(f"No plugin manifests found in {plugin_root}")
+    return plugin_ids
+
+
 def plugin_files(plugin_dir: Path) -> list[Path]:
     files = []
     for path in plugin_dir.rglob("*"):
@@ -30,42 +37,43 @@ def plugin_files(plugin_dir: Path) -> list[Path]:
     return sorted(files, key=lambda item: item.relative_to(plugin_dir).as_posix())
 
 
-def discover_plugin_ids() -> list[str]:
-    return sorted(path.parent.name for path in PLUGIN_ROOT.glob("*/manifest.json"))
-
-
 def shared_runtime_plugin_ids(
     file_name: str,
     plugin_ids: list[str] | None = None,
+    plugin_root: Path = PLUGIN_ROOT,
 ) -> set[str]:
     consumers = set(SHARED_RUNTIME_FILES.get(file_name, set()))
     if file_name == "_collection_import_base.py":
         consumers.update(
             plugin_id
-            for plugin_id in (plugin_ids or discover_plugin_ids())
+            for plugin_id in (plugin_ids or discover_plugin_ids(plugin_root))
             if plugin_id.startswith("import_")
         )
     return consumers
 
 
-def shared_runtime_files(plugin_id: str) -> list[Path]:
+def shared_runtime_files(plugin_id: str, plugin_root: Path = PLUGIN_ROOT) -> list[Path]:
     names = {
         name
         for name in (*SHARED_RUNTIME_FILES, "_collection_import_base.py")
-        if plugin_id in shared_runtime_plugin_ids(name)
+        if plugin_id in shared_runtime_plugin_ids(name, plugin_root=plugin_root)
     }
     return sorted(
-        (PLUGIN_ROOT / name for name in names if (PLUGIN_ROOT / name).is_file()),
+        (plugin_root / name for name in names if (plugin_root / name).is_file()),
         key=lambda path: path.name,
     )
 
 
-def archive_files(plugin_id: str, plugin_dir: Path) -> list[tuple[str, Path]]:
+def archive_files(
+    plugin_id: str,
+    plugin_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> list[tuple[str, Path]]:
     files = {
         source.relative_to(plugin_dir).as_posix(): source
         for source in plugin_files(plugin_dir)
     }
-    for source in shared_runtime_files(plugin_id):
+    for source in shared_runtime_files(plugin_id, plugin_root):
         if source.name in files:
             raise ValueError(
                 f"{plugin_id}: shared runtime file conflicts with plugin file: {source.name}"
@@ -74,8 +82,12 @@ def archive_files(plugin_id: str, plugin_dir: Path) -> list[tuple[str, Path]]:
     return sorted(files.items())
 
 
-def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
-    plugin_dir = PLUGIN_ROOT / plugin_id
+def build_plugin(
+    plugin_id: str,
+    output_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> tuple[Path, Path]:
+    plugin_dir = plugin_root / plugin_id
     manifest_path = plugin_dir / "manifest.json"
     if not manifest_path.is_file():
         raise ValueError(f"Unknown plugin: {plugin_id}")
@@ -89,7 +101,7 @@ def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / f"{plugin_id}_{version}.zip"
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_STORED) as bundle:
-        for relative, source in archive_files(plugin_id, plugin_dir):
+        for relative, source in archive_files(plugin_id, plugin_dir, plugin_root):
             info = zipfile.ZipInfo(
                 filename=f"{plugin_id}/{relative}",
                 date_time=(1980, 1, 1, 0, 0, 0),
@@ -105,17 +117,30 @@ def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
     return archive, checksum
 
 
+def build_all_plugins(
+    output_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> list[tuple[Path, Path]]:
+    return [
+        build_plugin(plugin_id, output_dir, plugin_root)
+        for plugin_id in discover_plugin_ids(plugin_root)
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build a deterministic DiscVault plugin archive.")
-    selection = parser.add_mutually_exclusive_group(required=True)
-    selection.add_argument("--plugin")
-    selection.add_argument("--all", action="store_true", help="Build every discovered plugin.")
+    plugin_selection = parser.add_mutually_exclusive_group(required=True)
+    plugin_selection.add_argument("--plugin")
+    plugin_selection.add_argument("--all", action="store_true", help="Build every discovered plugin.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "dist")
     args = parser.parse_args()
 
-    plugin_ids = discover_plugin_ids() if args.all else [args.plugin]
-    for plugin_id in plugin_ids:
-        archive, checksum = build_plugin(plugin_id, args.output_dir)
+    artifacts = (
+        build_all_plugins(args.output_dir)
+        if args.all
+        else [build_plugin(args.plugin, args.output_dir)]
+    )
+    for archive, checksum in artifacts:
         print(archive)
         print(checksum)
     return 0

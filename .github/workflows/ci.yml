@@ -31,7 +31,7 @@ jobs:
       - name: Version and catalog validation
         if: github.event_name != 'pull_request'
         run: python scripts/check_versions.py
-      - name: Rebuild deterministic bundle twice
+      - name: Rebuild every deterministic bundle twice
         run: |
           python scripts/build_plugin.py --all --output-dir build/first
           python scripts/build_plugin.py --all --output-dir build/second

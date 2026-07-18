@@ -44,8 +44,14 @@ python scripts/build_plugin.py --all
 Run `python scripts/setup_hooks.py` once after cloning to activate the fast
 pre-commit checks.
 
-Plugin releases use tags in the form `<plugin-id>-v<version>`. Release
-artifacts are rebuilt from the tagged source with normalized paths,
-timestamps, and permissions; identical source therefore produces identical
-ZIP bytes. This repository has no stable/beta channel aliases: every plugin
-version is immutable and independently downloadable.
+Every merge to `main` discovers all `plugins/*/manifest.json` files and builds
+their archives with normalized paths, timestamps, and permissions. CI builds
+every archive twice and requires byte-identical output. The release workflow
+then creates each missing `<plugin-id>-v<version>` GitHub Release with its ZIP
+and SHA-256 file. If a release already exists, the workflow downloads both
+assets and requires them to match the reproducible build; published assets are
+never overwritten.
+
+This repository has no stable/beta channel aliases: every plugin version is
+immutable and independently downloadable. A plugin source change therefore
+requires its manifest and catalog version to be incremented before merge.
