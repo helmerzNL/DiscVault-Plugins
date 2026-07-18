@@ -1,0 +1,22 @@
+{
+  "id": "dvd_fr",
+  "name": "DVDFr",
+  "version": "1.0.0",
+  "manifestVersion": 1,
+  "discVaultPluginApi": "next-1",
+  "minimumDiscVaultVersion": "26.4.63",
+  "categories": ["metadata_source"],
+  "capabilities": [
+    "search_title",
+    "search_barcode",
+    "movie_details",
+    "technical_specs"
+  ],
+  "requiresSecrets": false,
+  "settingsSchemaVersion": 1,
+  "settingsSchema": {},
+  "orderIndex": 45,
+  "entitlements": {
+    "source_use": "metadata.source.dvd_fr.use"
+  }
+}
