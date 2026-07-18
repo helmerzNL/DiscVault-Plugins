@@ -358,6 +358,12 @@ class CollectionImportPlugin:
         tmdb_id = extract_tmdb_id(mapped_value(row, aliases["tmdbId"], column_mapping.get("tmdbId")))
         raw_year = mapped_value(row, aliases["year"], column_mapping.get("year"))
         raw_release_date = mapped_value(row, aliases["releaseDate"], column_mapping.get("releaseDate"))
+        is_letterboxd_watchlist = (
+            self.source_kind == "letterboxd_export"
+            and source_file.stem.casefold() == "watchlist"
+        )
+        if is_letterboxd_watchlist:
+            raw_release_date = ""
         year = parse_year(raw_year) or parse_year(raw_release_date)
         movie = {
             "externalId": text(mapped_value(row, aliases["externalId"], column_mapping.get("externalId"))) or f"{source_file.name}:{index}",
@@ -461,6 +467,9 @@ class CollectionImportPlugin:
             )
         watched_at = text(mapped_value(row, aliases["watchedAt"], column_mapping.get("watchedAt")))
         watchlisted = bool_value(mapped_value(row, aliases["watchlisted"], column_mapping.get("watchlisted")), default=False)
+        if is_letterboxd_watchlist:
+            watched_at = ""
+            watchlisted = True
         tags = text(mapped_value(row, aliases["tags"], column_mapping.get("tags")))
         if watched_at or watchlisted or tags:
             movie["personal"] = {
@@ -661,6 +670,13 @@ class CollectionImportPlugin:
     def plan_import(self, payload: dict[str, Any] | None = None, context: dict[str, Any] | None = None) -> dict[str, Any]:
         inspection = self.inspect_source(payload, context)
         can_start = bool(inspection.get("readable"))
+        column_mapping = self.column_mapping(payload)
+        job_payload = {
+            "sourcePath": inspection.get("sourcePath"),
+            "sourceDatabaseHash": inspection.get("sourceDatabaseHash"),
+        }
+        if column_mapping:
+            job_payload["columnMapping"] = column_mapping
         return {
             "status": "ready" if can_start else "blocked",
             "canStart": can_start,
@@ -669,10 +685,7 @@ class CollectionImportPlugin:
             "jobPayload": {
                 "pluginId": self.plugin_id,
                 "entrypoint": "import_source",
-                "payload": {
-                    "sourcePath": inspection.get("sourcePath"),
-                    "sourceDatabaseHash": inspection.get("sourceDatabaseHash"),
-                },
+                "payload": job_payload,
                 "importSource": {
                     "pluginId": self.plugin_id,
                     "sourceKind": self.source_kind,
@@ -685,7 +698,7 @@ class CollectionImportPlugin:
         items, warnings, files, columns = self.load_items(source_path, self.column_mapping(payload))
         expected_hash = text((payload or {}).get("sourceDatabaseHash") or (payload or {}).get("source_database_hash"))
         actual_hash = self.digest(files)
-        if expected_hash and actual_hash and expected_hash != actual_hash:
+        if expected_hash and expected_hash != actual_hash:
             return {
                 "status": "blocked",
                 "provider": self.plugin_id,

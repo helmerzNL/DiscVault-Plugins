@@ -14,7 +14,7 @@ EXPECTED_VERSIONS = {
     "arrow": "1.0.1",
     "bol": "1.0.1",
     "keepa": "1.0.1",
-    "priceapi": "1.0.0",
+    "priceapi": "1.0.1",
     "zavvi": "1.0.1",
 }
 SECRET_PLUGINS = {"keepa", "priceapi"}
@@ -209,6 +209,10 @@ class PricePluginTests(unittest.TestCase):
         self.assertEqual(result["price"], 1234.56)
         self.assertEqual(result["currency"], "EUR")
         self.assertEqual(request.call_args.kwargs["json"]["country"], "de")
+        self.assertEqual(
+            request.call_args.kwargs["headers"]["Authorization"],
+            "Bearer live_key",
+        )
 
         with patch.object(
             module.requests,

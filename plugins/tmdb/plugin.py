@@ -350,6 +350,7 @@ def _import_wikidata_awards():
 
         plugin_path = os.path.abspath(__file__)
         module_dirs = (
+            os.path.dirname(plugin_path),
             os.path.dirname(os.path.dirname(plugin_path)),
             os.path.dirname(os.path.dirname(os.path.dirname(plugin_path))),
         )

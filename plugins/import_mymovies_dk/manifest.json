@@ -1,7 +1,7 @@
 {
   "id": "import_mymovies_dk",
   "name": "My Movies.dk Import",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "manifestVersion": 1,
   "discVaultPluginApi": "next-1",
   "minimumDiscVaultVersion": "26.4.63",

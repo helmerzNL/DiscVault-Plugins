@@ -36,7 +36,7 @@ class BetaManifestTests(unittest.TestCase):
                 "entrypoints": {"search_title"},
             },
             "movievault_26": {
-                "version": "1.8.0",
+                "version": "1.8.1",
                 "capabilities": {
                     "connection_recovery_action",
                     "describe_payload",
@@ -55,7 +55,7 @@ class BetaManifestTests(unittest.TestCase):
                 },
             },
             "tmdb": {
-                "version": "1.0.3",
+                "version": "1.0.4",
                 "capabilities": {"person_details", "person_filmography", "person_awards"},
                 "entrypoints": {"person_details", "person_filmography", "person_awards"},
             },
@@ -120,6 +120,51 @@ class BlurayComBetaTests(unittest.TestCase):
 
 
 class MovieVault26BetaTests(unittest.TestCase):
+    def test_authorization_uses_configured_token(self):
+        self.assertEqual(
+            movievault_26._headers({"secrets": {"token": "test-token"}})["Authorization"],
+            "Bearer test-token",
+        )
+
+    def test_nested_validation_error_retries_then_reports_failure(self):
+        template = {"version": "1"}
+        nested_error = {
+            "error": {
+                "code": "validation_error",
+                "message": "Rejected contribution",
+            }
+        }
+        with (
+            mock.patch.object(movievault_26, "_movievault_enabled", return_value=True),
+            mock.patch.object(movievault_26, "_contribution_enabled", return_value=True),
+            mock.patch.object(movievault_26, "_sharing_mode", return_value="standard"),
+            mock.patch.object(movievault_26, "_token", return_value="test-token"),
+            mock.patch.object(
+                movievault_26,
+                "_contribution_template",
+                side_effect=[template, template],
+            ) as contribution_template,
+            mock.patch.object(
+                movievault_26,
+                "_contribution_payload",
+                return_value=("movie", {"title": "Example Film"}),
+            ),
+            mock.patch.object(
+                movievault_26,
+                "_post_contribution",
+                side_effect=[nested_error, nested_error],
+            ) as post_contribution,
+        ):
+            result = movievault_26.receive_metadata(
+                {"entityType": "movie", "identity": "movie-1"},
+                {},
+            )
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["reason"], "validation_error")
+        self.assertEqual(contribution_template.call_count, 2)
+        self.assertEqual(post_contribution.call_count, 2)
+
     def test_receiver_helpers_filter_private_data_and_normalize_members(self):
         skipped = movievault_26.prepare_barcode_update(
             {"barcode": "MANUAL-123", "entityType": "release"},

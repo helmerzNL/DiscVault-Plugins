@@ -61,7 +61,7 @@ def _headers(context: dict[str, Any] | None, *, authorize: bool = True) -> dict[
     }
     token = _access_token(context)
     if authorize and token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = "Bearer " + token
     return headers
 
 

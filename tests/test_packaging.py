@@ -1,20 +1,41 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest import mock
 import zipfile
 
 from scripts.build_plugin import build_plugin, discover_plugin_ids
+from scripts.check_versions import changed_plugins
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackagingTests(unittest.TestCase):
+    def test_version_guard_maps_shared_runtime_changes_to_consuming_plugins(self):
+        changed_paths = "\n".join(
+            [
+                "plugins/_collection_import_base.py",
+                "plugins/wikidata_awards.py",
+            ]
+        )
+        completed = mock.Mock(returncode=0, stdout=changed_paths)
+        with mock.patch("scripts.check_versions.subprocess.run", return_value=completed):
+            changed = changed_plugins("origin/main")
+
+        expected_imports = {
+            plugin_id
+            for plugin_id in discover_plugin_ids()
+            if plugin_id.startswith("import_")
+        }
+        self.assertEqual(changed, expected_imports | {"tmdb"})
+
     def test_every_plugin_archive_is_byte_reproducible_with_one_plugin_root(self):
         plugin_ids = discover_plugin_ids()
         self.assertTrue(plugin_ids)
@@ -83,6 +104,39 @@ class PackagingTests(unittest.TestCase):
                         if name.endswith(("_collection_import_base.py", "wikidata_awards.py"))
                     }
                     self.assertEqual(helper_names, expected_helpers[plugin_id])
+
+    def test_tmdb_archive_loads_bundled_wikidata_awards(self):
+        with tempfile.TemporaryDirectory() as output_dir, tempfile.TemporaryDirectory() as extract_dir:
+            archive, _checksum = build_plugin("tmdb", Path(output_dir))
+            with zipfile.ZipFile(archive) as bundle:
+                bundle.extractall(extract_dir)
+            plugin_dir = Path(extract_dir) / "tmdb"
+            spec = importlib.util.spec_from_file_location(
+                "packaged_tmdb",
+                plugin_dir / "plugin.py",
+            )
+            module = importlib.util.module_from_spec(spec)
+            assert spec.loader is not None
+            previous = sys.modules.pop("wikidata_awards", None)
+            original_path = list(sys.path)
+            try:
+                sys.path[:] = [
+                    entry
+                    for entry in sys.path
+                    if Path(entry or ".").resolve() != plugin_dir.resolve()
+                ]
+                spec.loader.exec_module(module)
+                helper = module._import_wikidata_awards()
+                self.assertIsNotNone(helper)
+                self.assertEqual(
+                    Path(helper.__file__).resolve(),
+                    (plugin_dir / "wikidata_awards.py").resolve(),
+                )
+            finally:
+                sys.path[:] = original_path
+                sys.modules.pop("wikidata_awards", None)
+                if previous is not None:
+                    sys.modules["wikidata_awards"] = previous
 
     def test_catalog_matches_all_discovered_manifests_and_release_names(self):
         catalog = json.loads((REPO_ROOT / "catalog.json").read_text(encoding="utf-8"))

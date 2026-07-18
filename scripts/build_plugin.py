@@ -34,14 +34,26 @@ def discover_plugin_ids() -> list[str]:
     return sorted(path.parent.name for path in PLUGIN_ROOT.glob("*/manifest.json"))
 
 
+def shared_runtime_plugin_ids(
+    file_name: str,
+    plugin_ids: list[str] | None = None,
+) -> set[str]:
+    consumers = set(SHARED_RUNTIME_FILES.get(file_name, set()))
+    if file_name == "_collection_import_base.py":
+        consumers.update(
+            plugin_id
+            for plugin_id in (plugin_ids or discover_plugin_ids())
+            if plugin_id.startswith("import_")
+        )
+    return consumers
+
+
 def shared_runtime_files(plugin_id: str) -> list[Path]:
     names = {
         name
-        for name, plugin_ids in SHARED_RUNTIME_FILES.items()
-        if plugin_id in plugin_ids
+        for name in (*SHARED_RUNTIME_FILES, "_collection_import_base.py")
+        if plugin_id in shared_runtime_plugin_ids(name)
     }
-    if plugin_id.startswith("import_"):
-        names.add("_collection_import_base.py")
     return sorted(
         (PLUGIN_ROOT / name for name in names if (PLUGIN_ROOT / name).is_file()),
         key=lambda path: path.name,

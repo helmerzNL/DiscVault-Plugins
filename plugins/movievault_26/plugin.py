@@ -189,7 +189,7 @@ def _headers(context):
     headers = {"Accept": "application/json"}
     token = _token(context)
     if token:
-        headers["Authorization"] = f"Bearer {token}"
+        headers["Authorization"] = "Bearer " + token
     return headers
 
 
@@ -2668,7 +2668,8 @@ def _contribution_field_diagnostics(payload, template, contribution_payload):
 
 
 def _validation_error(response_payload):
-    return _text(response_payload.get("code") or response_payload.get("error")) == "validation_error"
+    code, _message = _response_error(response_payload)
+    return code == "validation_error"
 
 
 def receive_metadata(payload, context=None):
@@ -2722,6 +2723,16 @@ def receive_metadata(payload, context=None):
             "entityType": entity_type,
             "reason": "rate_limited",
             "retryAfter": exc.retry_after,
+        }
+    error_code, error_message = _response_error(response_payload)
+    if error_code:
+        return {
+            "status": "error",
+            "provider": PROVIDER_ID,
+            "entityType": entity_type,
+            "reason": error_code,
+            "message": error_message,
+            "response": response_payload,
         }
     accepted_fields, dropped_fields = _contribution_field_diagnostics(payload, template, contribution_payload)
     return {

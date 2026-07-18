@@ -110,6 +110,43 @@ class PortedPluginTests(unittest.TestCase):
         self.assertEqual(imported["items"][0]["title"], "Example Film")
         self.assertEqual(imported["items"][0]["imdbId"], "tt1234567")
 
+    def test_collection_import_preserves_mapping_and_blocks_missing_planned_source(self):
+        plugin = load_plugin("import_clz_movies")
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "custom.csv"
+            source.write_text(
+                "Custom Title,Custom Year\nExample Film,2024\n",
+                encoding="utf-8",
+            )
+            payload = {
+                "sourcePath": str(source),
+                "columnMapping": {"title": "Custom Title", "year": "Custom Year"},
+            }
+            plan = plugin.plan_import(payload, {})
+            queued = plan["jobPayload"]["payload"]
+            source.unlink()
+            imported = plugin.import_source(queued, {})
+
+        self.assertEqual(queued["columnMapping"], payload["columnMapping"])
+        self.assertEqual(imported["status"], "blocked")
+        self.assertIn("changed after planning", imported["error"])
+
+    def test_letterboxd_watchlist_date_is_not_treated_as_watched(self):
+        plugin = load_plugin("import_letterboxd")
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "watchlist.csv"
+            source.write_text(
+                "Date,Name,Year,Letterboxd URI\n"
+                "2026-07-18,Example Film,2024,https://letterboxd.com/film/example-film/\n",
+                encoding="utf-8",
+            )
+            imported = plugin.import_source({"sourcePath": str(source)}, {})
+
+        item = imported["items"][0]
+        self.assertTrue(item["personal"]["watchlisted"])
+        self.assertFalse(item["personal"]["watchedAt"])
+        self.assertNotIn("releaseDate", item)
+
     def test_stable_plugins_have_offline_configuration_paths(self):
         jellyfin = load_plugin("jellyfin")
         plex = load_plugin("plex")
@@ -141,6 +178,15 @@ class PortedPluginTests(unittest.TestCase):
         )
         self.assertEqual(omdb.health_check({})["status"], "needs_configuration")
         self.assertEqual(upcitemdb.search_barcode({}, {})["status"], "skipped")
+        self.assertEqual(
+            trakt._headers(
+                {
+                    "settings": {"username": "me"},
+                    "secrets": {"clientId": "test-client", "accessToken": "test-token"},
+                }
+            )["Authorization"],
+            "Bearer test-token",
+        )
 
 
 if __name__ == "__main__":

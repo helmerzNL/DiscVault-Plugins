@@ -122,7 +122,7 @@ def price_check(payload=None, context=None):
             "url": product_url or None,
             "include_history": False,
         },
-        headers={"Authorization": f"Bearer {key}"},
+        headers={"Authorization": "Bearer " + key},
         timeout=20,
     )
     response.raise_for_status()
