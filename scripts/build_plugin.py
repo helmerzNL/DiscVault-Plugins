@@ -13,6 +13,13 @@ EXCLUDED_NAMES = {"__pycache__", ".pytest_cache"}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".zip", ".sha256"}
 
 
+def discover_plugin_ids(plugin_root: Path = PLUGIN_ROOT) -> list[str]:
+    plugin_ids = sorted(path.parent.name for path in plugin_root.glob("*/manifest.json"))
+    if not plugin_ids:
+        raise ValueError(f"No plugin manifests found in {plugin_root}")
+    return plugin_ids
+
+
 def plugin_files(plugin_dir: Path) -> list[Path]:
     files = []
     for path in plugin_dir.rglob("*"):
@@ -27,8 +34,12 @@ def plugin_files(plugin_dir: Path) -> list[Path]:
     return sorted(files, key=lambda item: item.relative_to(plugin_dir).as_posix())
 
 
-def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
-    plugin_dir = PLUGIN_ROOT / plugin_id
+def build_plugin(
+    plugin_id: str,
+    output_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> tuple[Path, Path]:
+    plugin_dir = plugin_root / plugin_id
     manifest_path = plugin_dir / "manifest.json"
     if not manifest_path.is_file():
         raise ValueError(f"Unknown plugin: {plugin_id}")
@@ -59,15 +70,32 @@ def build_plugin(plugin_id: str, output_dir: Path) -> tuple[Path, Path]:
     return archive, checksum
 
 
+def build_all_plugins(
+    output_dir: Path,
+    plugin_root: Path = PLUGIN_ROOT,
+) -> list[tuple[Path, Path]]:
+    return [
+        build_plugin(plugin_id, output_dir, plugin_root)
+        for plugin_id in discover_plugin_ids(plugin_root)
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build a deterministic DiscVault plugin archive.")
-    parser.add_argument("--plugin", required=True)
+    plugin_selection = parser.add_mutually_exclusive_group(required=True)
+    plugin_selection.add_argument("--plugin")
+    plugin_selection.add_argument("--all", action="store_true")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "dist")
     args = parser.parse_args()
 
-    archive, checksum = build_plugin(args.plugin, args.output_dir)
-    print(archive)
-    print(checksum)
+    artifacts = (
+        build_all_plugins(args.output_dir)
+        if args.all
+        else [build_plugin(args.plugin, args.output_dir)]
+    )
+    for archive, checksum in artifacts:
+        print(archive)
+        print(checksum)
     return 0
 
 
