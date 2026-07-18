@@ -59,7 +59,7 @@ jobs:
               if git show-ref --verify --quiet "refs/tags/$tag"; then
                 mapfile -t shared_paths < <(
                   python -c \
-                    'import sys; from scripts.build_plugin import shared_runtime_relative_paths; print(*shared_runtime_relative_paths(sys.argv[1]), sep="\n")' \
+                    'import sys; from scripts.build_plugin import shared_runtime_relative_paths; sys.stdout.write("\n".join(shared_runtime_relative_paths(sys.argv[1])))' \
                     "$plugin"
                 )
                 git diff --quiet "$tag" -- "plugins/$plugin" "${shared_paths[@]}" || {
