@@ -57,8 +57,13 @@ jobs:
               rm -rf "$verify_dir"
             elif grep -q "HTTP 404" "$release_error"; then
               if git show-ref --verify --quiet "refs/tags/$tag"; then
-                git diff --quiet "$tag" -- "plugins/$plugin" || {
-                  echo "::error::Existing tag $tag does not match plugins/$plugin on main."
+                mapfile -t shared_paths < <(
+                  python -c \
+                    'import sys; from scripts.build_plugin import shared_runtime_relative_paths; print(*shared_runtime_relative_paths(sys.argv[1]), sep="\n")' \
+                    "$plugin"
+                )
+                git diff --quiet "$tag" -- "plugins/$plugin" "${shared_paths[@]}" || {
+                  echo "::error::Existing tag $tag does not match the packaged sources for $plugin on main."
                   exit 1
                 }
                 target_args=(--verify-tag)

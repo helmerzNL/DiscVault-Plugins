@@ -10,7 +10,12 @@ import unittest
 from unittest import mock
 import zipfile
 
-from scripts.build_plugin import build_all_plugins, build_plugin, discover_plugin_ids
+from scripts.build_plugin import (
+    build_all_plugins,
+    build_plugin,
+    discover_plugin_ids,
+    shared_runtime_relative_paths,
+)
 from scripts.check_versions import changed_plugins
 
 
@@ -35,6 +40,15 @@ class PackagingTests(unittest.TestCase):
             if plugin_id.startswith("import_")
         }
         self.assertEqual(changed, expected_imports | {"tmdb"})
+        self.assertEqual(
+            shared_runtime_relative_paths("tmdb"),
+            ["plugins/wikidata_awards.py"],
+        )
+        for plugin_id in expected_imports:
+            self.assertEqual(
+                shared_runtime_relative_paths(plugin_id),
+                ["plugins/_collection_import_base.py"],
+            )
 
     def test_all_plugins_are_discovered_and_built_in_stable_order(self):
         with tempfile.TemporaryDirectory() as plugin_dir, tempfile.TemporaryDirectory() as output_dir:

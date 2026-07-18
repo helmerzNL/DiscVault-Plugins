@@ -64,6 +64,13 @@ def shared_runtime_files(plugin_id: str, plugin_root: Path = PLUGIN_ROOT) -> lis
     )
 
 
+def shared_runtime_relative_paths(plugin_id: str) -> list[str]:
+    return [
+        path.relative_to(REPO_ROOT).as_posix()
+        for path in shared_runtime_files(plugin_id)
+    ]
+
+
 def archive_files(
     plugin_id: str,
     plugin_dir: Path,
