@@ -267,6 +267,239 @@ def _lookup_records(payload, context):
     return result.get("results") if isinstance(result, dict) else []
 
 
+def _release_details_request(payload):
+    barcode = _normalized_barcode(
+        (payload or {}).get("barcode")
+        or (payload or {}).get("externalBarcode")
+        or (payload or {}).get("external_barcode")
+    )
+    if not barcode:
+        return None
+    request = {"barcode": barcode}
+    for target, names, maximum in (
+        ("title", ("title", "fallbackTitle", "fallback_title"), 500),
+        ("edition", ("edition",), 255),
+        ("format", ("format", "mediaFormat", "media_format"), 80),
+    ):
+        value = next(
+            (
+                str((payload or {}).get(name) or "").strip()
+                for name in names
+                if str((payload or {}).get(name) or "").strip()
+            ),
+            "",
+        )
+        clean = " ".join(value.split())
+        if clean and len(clean) <= maximum:
+            request[target] = clean
+    year = (payload or {}).get("year")
+    if not isinstance(year, bool):
+        try:
+            parsed_year = int(year)
+        except (TypeError, ValueError):
+            parsed_year = None
+        if parsed_year is not None and 1870 <= parsed_year <= 2200:
+            request["year"] = parsed_year
+    return request
+
+
+def _release_details_error(reason):
+    value = str(reason or "")
+    if (
+        not 3 <= len(value) <= 80
+        or any(character not in "abcdefghijklmnopqrstuvwxyz0123456789_" for character in value)
+    ):
+        value = "release_details_failed"
+    return {
+        "status": "error",
+        "provider": PROVIDER_ID,
+        "providerLabel": PROVIDER_LABEL,
+        "reason": value,
+        "items": [],
+    }
+
+
+def _release_details_identifiers(film):
+    source = film.get("identifiers") if isinstance(film, dict) else {}
+    if not isinstance(source, dict):
+        return {}
+    return {
+        key: str(value)
+        for key, value in {
+            "tmdbId": source.get("tmdbMovieId"),
+            "imdbId": source.get("imdbId"),
+        }.items()
+        if value
+    }
+
+
+def _release_details_box_set_proposal(box_set, verification_status):
+    if not isinstance(box_set, dict):
+        return None
+    confidence = (
+        "needs_member_confirmation"
+        if verification_status == "unreviewed_external"
+        else "identified"
+    )
+    members = []
+    for member in box_set.get("members") or []:
+        if not isinstance(member, dict):
+            continue
+        identifiers = member.get("identifiers")
+        identifiers = identifiers if isinstance(identifiers, dict) else {}
+        members.append(
+            {
+                key: value
+                for key, value in {
+                    "position": member.get("position"),
+                    "title": member.get("title"),
+                    "canonicalTitle": member.get("title"),
+                    "releaseTitle": member.get("title"),
+                    "year": member.get("year"),
+                    "discNumber": member.get("discNumber"),
+                    "discFormat": member.get("discFormat"),
+                    "tmdbId": identifiers.get("tmdbMovieId"),
+                    "imdbId": identifiers.get("imdbId"),
+                    "relationship": "contains",
+                    "memberConfidence": confidence,
+                }.items()
+                if value not in (None, "", [], {})
+            }
+        )
+    return {
+        key: value
+        for key, value in {
+            "title": box_set.get("title"),
+            "format": box_set.get("format"),
+            "members": members,
+            "memberCount": len(members),
+            "isBoxSet": True,
+            "memberSource": "movievault_v2_release_technical",
+            "memberConfidence": confidence,
+        }.items()
+        if value not in (None, "", [], {})
+    }
+
+
+def _release_details_result(response):
+    if (
+        not isinstance(response, dict)
+        or response.get("contractVersion") != "release-technical-1"
+    ):
+        return _release_details_error("release_details_response_invalid")
+    status = str(response.get("status") or "")
+    if status == "miss":
+        return {"status": "miss", "provider": PROVIDER_ID, "items": []}
+    if status == "ambiguous":
+        return {"status": "ambiguous", "provider": PROVIDER_ID, "items": []}
+    if status == "failed":
+        return _release_details_error(response.get("errorCode"))
+    if status not in {"canonical_hit", "external_hit"}:
+        return _release_details_error("release_details_response_invalid")
+    film = response.get("film")
+    release = response.get("release")
+    if not isinstance(film, dict) or not isinstance(release, dict):
+        return _release_details_error("release_details_response_invalid")
+    verification_status = str(response.get("verificationStatus") or "")
+    expected_verification = (
+        "canonical" if status == "canonical_hit" else "unreviewed_external"
+    )
+    if verification_status != expected_verification:
+        return _release_details_error("release_details_response_invalid")
+    identifiers = _release_details_identifiers(film)
+    movie = {
+        key: value
+        for key, value in {
+            "title": film.get("title"),
+            "releaseTitle": release.get("title"),
+            "year": film.get("year"),
+            "format": release.get("format"),
+            "edition": release.get("edition"),
+            "regions": release.get("regions"),
+            "discCount": release.get("discCount"),
+        }.items()
+        if value not in (None, "", [], {})
+    }
+    moderation = response.get("moderation")
+    moderation = moderation if isinstance(moderation, dict) else {}
+    candidate = {
+        key: value
+        for key, value in {
+            "title": film.get("title"),
+            "releaseTitle": release.get("title"),
+            "year": film.get("year"),
+            "format": release.get("format"),
+            "edition": release.get("edition"),
+            "provider": PROVIDER_ID,
+            "providerLabel": PROVIDER_LABEL,
+            "identifiers": identifiers,
+            "verificationStatus": verification_status,
+            "moderationCandidateId": moderation.get("candidateId"),
+        }.items()
+        if value not in (None, "", [], {})
+    }
+    result_status = (
+        "unreviewed_external"
+        if verification_status == "unreviewed_external"
+        else "hit"
+    )
+    source_label = (
+        f"{PROVIDER_LABEL} (unreviewed)"
+        if verification_status == "unreviewed_external"
+        else PROVIDER_LABEL
+    )
+    result = {
+        "status": result_status,
+        "provider": PROVIDER_ID,
+        "providerLabel": source_label,
+        "sourceLabel": source_label,
+        "resolutionStatus": status,
+        "verificationStatus": verification_status,
+        "requiresReview": verification_status == "unreviewed_external",
+        "moderationCandidateId": moderation.get("candidateId"),
+        "title": film.get("title") or "",
+        "releaseTitle": release.get("title") or "",
+        "year": film.get("year"),
+        "format": release.get("format"),
+        "edition": release.get("edition"),
+        "movie": movie,
+        "release": release,
+        "technicalDetails": release,
+        "identifiers": identifiers,
+        "items": [candidate],
+    }
+    proposal = _release_details_box_set_proposal(
+        response.get("boxSet"),
+        verification_status,
+    )
+    if proposal:
+        result.update(
+            {
+                "isBoxSet": True,
+                "isBoxSetCandidate": verification_status == "unreviewed_external",
+                "boxSetProposal": proposal,
+                "boxSetProposals": [proposal],
+            }
+        )
+    return {
+        key: value
+        for key, value in result.items()
+        if value not in (None, "", [], {})
+    }
+
+
+def _release_details_fallback(payload, context):
+    if not _bool_setting(context, "technicalFallback", False):
+        return None
+    request = _release_details_request(payload)
+    if request is None:
+        return None
+    callback = _callback(context, "movievaultV2ReleaseDetails")
+    if callback is None:
+        return _bridge_error()
+    return _release_details_result(callback(request))
+
+
 def health_check(context=None):
     callback = _callback(context, "movievaultV2Status")
     if callback is None:
@@ -308,6 +541,9 @@ def search_barcode(payload, context=None):
     if records is None:
         return _bridge_error()
     if not records:
+        fallback = _release_details_fallback(payload or {}, context or {})
+        if fallback is not None:
+            return fallback
         return {"status": "miss", "provider": PROVIDER_ID, "items": []}
     releases = [record for record in records if record.get("recordType") == "release"]
     selected = releases[0] if releases else records[0]

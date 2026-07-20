@@ -14,18 +14,17 @@ only activates once the core also supports it.
 
 ## Requirements
 
-- DiscVault `26.4.62` or newer to negotiate `distribution-4` (the first core
-  release with strict `distribution-4` parsing, bounded anonymous poster
-  caching, and authenticated local poster routes). Older 26.x cores keep
-  negotiating `distribution-2`/`distribution-3` with this same package;
-  `distribution-4` never activates on them.
+- DiscVault `26.5.9` or newer. This is the first core release with the bounded
+  anonymous `release-technical-1` callback used by this package. It also
+  includes strict `distribution-4` parsing, bounded anonymous poster caching,
+  and authenticated local poster routes.
 - A reachable MovieVault v2 origin with a compatible distribution feed
   enabled.
 - No API key, contribution token, instance identity, or other secret.
 
 ## Manual installation
 
-1. Download `movievault_v2_1.2.1.zip` and its `.sha256` file from the release.
+1. Download `movievault_v2_1.3.0.zip` and its `.sha256` file from the release.
 2. Verify the SHA-256 checksum.
 3. Extract the archive directly into `DISCVAULT_PLUGIN_INSTALL_DIR`, normally
    the persistent `/data/plugins` directory. The resulting path must be
@@ -39,7 +38,8 @@ The standard origin is `https://movies2.vaultstack.eu`. A self-hosted
 MovieVault v2 origin can be saved instead; explicit operator settings are
 preserved across registry refreshes and plugin upgrades. The remaining defaults
 are a 6-hour sync interval, 48-hour stale threshold, 20-second request timeout,
-128 MiB artifact limit, and 12 lookup results.
+128 MiB artifact limit, 12 lookup results, and four bounded technical-result
+polls.
 
 `movievault_26` can remain installed and enabled independently. Contributions
 continue through the existing attributed MovieVault connection; this plugin
@@ -48,6 +48,22 @@ has no contribution capability and never receives those credentials.
 Anonymous bucket fallback is disabled by default. When enabled, it requests
 only one anonymous hash bucket after a local miss and filters that bucket by
 the complete hash.
+
+Anonymous technical fallback is also disabled by default. When enabled,
+DiscVault checks the local index and optional hash bucket first. A genuine
+barcode miss invokes the core bridge for one MovieVault
+`release-technical-1` resolution. DiscVault sends only the normalized barcode
+and bounded title/year/edition/format hints: no authentication, cookies,
+instance identity, contribution credentials, collection context, client
+address, or browser headers. Opaque pending IDs are polled at most the
+configured number of attempts.
+
+The plugin itself remains callback-only and contains no HTTP or database
+client. Canonical responses are normal hits. External responses use
+`unreviewed_external`, include the opaque MovieVault moderation candidate ID,
+and must be confirmed rather than silently accepted. PWA, Android, and iOS
+clients all reuse this same DiscVault server-side result path and never contact
+MovieVault or its metadata providers directly.
 
 ## Poster URLs stay local
 
@@ -60,6 +76,12 @@ never fetched, stored, or transmitted by this plugin. On `distribution-2`/
 
 ## Release notes
 
+- **1.3.0** — Added a default-off technical-release fallback after local and
+  optional hash-bucket misses. The plugin invokes only DiscVault core's bounded
+  anonymous `release-technical-1` callback, maps canonical and visibly
+  unreviewed external results into the existing barcode flow, and preserves
+  stable miss/ambiguous/error outcomes. Minimum DiscVault version is now
+  `26.5.9`.
 - **1.2.1** — Moved release packaging to the repository-wide automatic
   pipeline. Plugin runtime behavior and compatibility are unchanged from
   1.2.0; every merge to `main` now publishes or verifies the immutable ZIP and
