@@ -1,10 +1,10 @@
 {
   "id": "movievault_v2",
   "name": "MovieVault v2",
-  "version": "1.2.1",
+  "version": "1.3.1",
   "manifestVersion": 1,
   "discVaultPluginApi": "next-1",
-  "minimumDiscVaultVersion": "26.4.62",
+  "minimumDiscVaultVersion": "26.5.10",
   "distributionContractRange": {
     "minimum": "distribution-2",
     "maximum": "distribution-4"
@@ -85,6 +85,24 @@
         "required": false,
         "default": false,
         "description": "Query one anonymous hash bucket only when the local index misses."
+      },
+      {
+        "name": "technicalFallback",
+        "label": "Allow anonymous technical fallback",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "After local and optional bucket misses, ask MovieVault for one privacy-safe technical release resolution."
+      },
+      {
+        "name": "releaseDetailsPollAttempts",
+        "label": "Technical fallback poll attempts",
+        "type": "number",
+        "required": false,
+        "default": 4,
+        "minimum": 1,
+        "maximum": 10,
+        "description": "Maximum opaque result polls after MovieVault accepts a technical fallback request."
       }
     ],
     "secrets": []

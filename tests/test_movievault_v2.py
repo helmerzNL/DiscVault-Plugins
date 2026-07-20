@@ -67,6 +67,58 @@ BOX_SET = {
     "revision": 42,
 }
 
+EXTERNAL_RELEASE_DETAILS = {
+    "contractVersion": "release-technical-1",
+    "status": "external_hit",
+    "verificationStatus": "unreviewed_external",
+    "film": {
+        "title": "Example Film",
+        "year": 2024,
+        "identifiers": {
+            "tmdbMovieId": "123",
+            "imdbId": "tt1234567",
+        },
+        "links": {
+            "tmdb": "https://www.themoviedb.org/movie/123",
+            "imdb": "https://www.imdb.com/title/tt1234567/",
+        },
+    },
+    "release": {
+        "barcodes": [
+            {
+                "type": "ean13",
+                "value": BARCODE,
+                "scope": "package",
+            }
+        ],
+        "title": "Example Film - Collector's Edition",
+        "format": "4K UHD",
+        "edition": "SteelBook",
+        "discCount": 2,
+        "regions": ["B"],
+        "packaging": ["steelbook"],
+        "video": {
+            "resolution": "2160p",
+            "codecs": ["hevc"],
+            "hdrFormats": ["dolby_vision"],
+            "aspectRatios": ["2.39:1"],
+        },
+        "audioTracks": [
+            {
+                "languageCode": "en",
+                "codec": "dolby_truehd",
+                "channels": "7.1",
+                "immersiveFormat": "dolby_atmos",
+            }
+        ],
+        "subtitleLanguages": ["en", "nl"],
+    },
+    "moderation": {
+        "candidateId": "discovery_abcdefghijkl",
+        "status": "pending",
+    },
+}
+
 
 class MovieVaultV2PluginTests(unittest.TestCase):
     def test_manifest_is_independent_and_secret_free(self):
@@ -90,6 +142,8 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(settings["maximumArtifactBytes"]["default"], 134217728)
         self.assertEqual(settings["maximumResults"]["default"], 12)
         self.assertFalse(settings["bucketFallback"]["default"])
+        self.assertFalse(settings["technicalFallback"]["default"])
+        self.assertEqual(settings["releaseDetailsPollAttempts"]["default"], 4)
 
     def test_manifest_declares_distribution_4_range_and_minimum_core(self):
         manifest = json.loads((PLUGIN_DIR / "manifest.json").read_text(encoding="utf-8"))
@@ -97,11 +151,7 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(set(contract_range), {"minimum", "maximum"})
         self.assertEqual(contract_range["minimum"], "distribution-2")
         self.assertEqual(contract_range["maximum"], "distribution-4")
-        # 26.4.62 is the first DiscVault core release with strict distribution-4
-        # parsing, bounded anonymous poster caching, and authenticated local
-        # poster routes; older cores never see distribution-4 offered and keep
-        # negotiating distribution-2/-3 exactly as before.
-        self.assertEqual(manifest["minimumDiscVaultVersion"], "26.4.62")
+        self.assertEqual(manifest["minimumDiscVaultVersion"], "26.5.10")
 
     def test_missing_core_bridge_is_explicit(self):
         for function, payload in (
@@ -168,6 +218,146 @@ class MovieVaultV2PluginTests(unittest.TestCase):
 
         self.assertEqual(result["status"], "hit")
         self.assertEqual(result["releaseId"], RELEASE["releaseId"])
+
+    def test_technical_fallback_is_disabled_by_default(self):
+        calls = []
+        context = {
+            "settings": {},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
+            "movievaultV2ReleaseDetails": lambda request: calls.append(request),
+        }
+
+        result = plugin.search_barcode({"barcode": BARCODE}, context)
+
+        self.assertEqual(result["status"], "miss")
+        self.assertEqual(calls, [])
+
+    def test_local_and_bucket_hits_do_not_invoke_technical_fallback(self):
+        release_calls = []
+        local_context = {
+            "settings": {"technicalFallback": True},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": [RELEASE]},
+            "movievaultV2ReleaseDetails": lambda request: release_calls.append(request),
+        }
+        bucket_context = {
+            "settings": {"bucketFallback": True, "technicalFallback": True},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
+            "movievaultV2BucketLookup": lambda _request: {
+                "state": "remote_bucket",
+                "results": [RELEASE],
+            },
+            "movievaultV2ReleaseDetails": lambda request: release_calls.append(request),
+        }
+
+        local = plugin.search_barcode({"barcode": BARCODE}, local_context)
+        bucket = plugin.search_barcode({"barcode": BARCODE}, bucket_context)
+
+        self.assertEqual(local["status"], "hit")
+        self.assertEqual(bucket["status"], "hit")
+        self.assertEqual(release_calls, [])
+
+    def test_enabled_technical_fallback_maps_external_hit_as_unreviewed(self):
+        calls = []
+        context = {
+            "settings": {"technicalFallback": True},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
+            "movievaultV2ReleaseDetails": lambda request: (
+                calls.append(request) or EXTERNAL_RELEASE_DETAILS
+            ),
+        }
+
+        result = plugin.search_barcode(
+            {
+                "barcode": "4006-3813 33931",
+                "title": "  Example   Film ",
+                "year": "2024",
+                "format": "4K UHD",
+            },
+            context,
+        )
+
+        self.assertEqual(
+            calls,
+            [
+                {
+                    "barcode": BARCODE,
+                    "title": "Example Film",
+                    "year": 2024,
+                    "format": "4K UHD",
+                }
+            ],
+        )
+        self.assertEqual(result["status"], "unreviewed_external")
+        self.assertEqual(result["verificationStatus"], "unreviewed_external")
+        self.assertTrue(result["requiresReview"])
+        self.assertEqual(result["moderationCandidateId"], "discovery_abcdefghijkl")
+        self.assertEqual(result["identifiers"], {"tmdbId": "123", "imdbId": "tt1234567"})
+        self.assertNotIn("sourceUrl", result)
+        self.assertNotIn("description", result)
+
+    def test_technical_fallback_maps_stable_failure_without_provider_data(self):
+        context = {
+            "settings": {"technicalFallback": True},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
+            "movievaultV2ReleaseDetails": lambda _request: {
+                "contractVersion": "release-technical-1",
+                "status": "failed",
+                "errorCode": "release_details_rate_limited",
+            },
+        }
+
+        result = plugin.search_barcode({"barcode": BARCODE}, context)
+
+        self.assertEqual(result["status"], "error")
+        self.assertEqual(result["reason"], "release_details_rate_limited")
+        self.assertEqual(result["items"], [])
+
+    def test_technical_fallback_maps_box_set_for_existing_review_flow(self):
+        response = json.loads(json.dumps(EXTERNAL_RELEASE_DETAILS))
+        response["boxSet"] = {
+            "state": "explicit",
+            "title": "Example Collection",
+            "format": "4K UHD",
+            "members": [
+                {
+                    "position": 1,
+                    "title": "Example Film",
+                    "year": 2024,
+                    "discNumber": 1,
+                    "discFormat": "4K UHD",
+                    "identifiers": {
+                        "tmdbMovieId": "123",
+                        "imdbId": "tt1234567",
+                    },
+                },
+                {
+                    "position": 2,
+                    "title": "Example Film Two",
+                    "discNumber": 2,
+                    "discFormat": "Blu-ray",
+                    "identifiers": {
+                        "tmdbMovieId": "456",
+                        "imdbId": "tt7654321",
+                    },
+                },
+            ],
+        }
+        context = {
+            "settings": {"technicalFallback": True},
+            "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
+            "movievaultV2ReleaseDetails": lambda _request: response,
+        }
+
+        result = plugin.search_barcode({"barcode": BARCODE}, context)
+
+        self.assertTrue(result["isBoxSet"])
+        self.assertTrue(result["isBoxSetCandidate"])
+        proposal = result["boxSetProposal"]
+        self.assertEqual(proposal["memberConfidence"], "needs_member_confirmation")
+        self.assertEqual(
+            [member["position"] for member in proposal["members"]],
+            [1, 2],
+        )
 
     def test_box_set_candidates_preserve_exact_release_editions(self):
         context = {
