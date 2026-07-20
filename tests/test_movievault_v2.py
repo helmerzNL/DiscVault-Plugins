@@ -151,7 +151,7 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(set(contract_range), {"minimum", "maximum"})
         self.assertEqual(contract_range["minimum"], "distribution-2")
         self.assertEqual(contract_range["maximum"], "distribution-4")
-        self.assertEqual(manifest["minimumDiscVaultVersion"], "26.5.9")
+        self.assertEqual(manifest["minimumDiscVaultVersion"], "26.5.10")
 
     def test_missing_core_bridge_is_explicit(self):
         for function, payload in (
