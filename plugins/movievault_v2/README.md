@@ -30,33 +30,27 @@ only activates once the core also supports it.
    the persistent `/data/plugins` directory. The resulting path must be
    `/data/plugins/movievault_v2/manifest.json`.
 4. Restart DiscVault or refresh its plugin registry.
-5. Review the automatically populated settings and enable the plugin. DiscVault
-   queues the first index synchronization when the plugin is enabled.
+5. Confirm the MovieVault origin and enable the plugin. DiscVault queues the
+   first index synchronization when the plugin is enabled.
 6. Wait for the queued job and health state to become `current`.
 
 The standard origin is `https://movies2.vaultstack.eu`. A self-hosted
-MovieVault v2 origin can be saved instead; explicit operator settings are
-preserved across registry refreshes and plugin upgrades. The remaining defaults
-are a 6-hour sync interval, 48-hour stale threshold, 20-second request timeout,
-128 MiB artifact limit, 12 lookup results, and four bounded technical-result
-polls.
+MovieVault v2 origin can be saved instead. It is the only user-facing setting.
+Synchronization, staleness, request, artifact, result, bucket, and polling
+limits use bounded DiscVault core defaults instead of exposing implementation
+controls to end users.
 
 `movievault_26` can remain installed and enabled independently. Contributions
 continue through the existing attributed MovieVault connection; this plugin
 has no contribution capability and never receives those credentials.
 
-Anonymous bucket fallback is disabled by default. When enabled, it requests
-only one anonymous hash bucket after a local miss and filters that bucket by
-the complete hash.
-
-Anonymous technical fallback is also disabled by default. When enabled,
-DiscVault checks the local index and optional hash bucket first. A genuine
-barcode miss invokes the core bridge for one MovieVault
+DiscVault checks the local index first. A genuine barcode miss invokes the core
+bridge for one MovieVault
 `release-technical-1` resolution. DiscVault sends only the normalized barcode
 and bounded title/year/edition/format hints: no authentication, cookies,
 instance identity, contribution credentials, collection context, client
-address, or browser headers. Opaque pending IDs are polled at most the
-configured number of attempts.
+address, or browser headers. Opaque pending IDs use the bounded core polling
+policy.
 
 The plugin itself remains callback-only and contains no HTTP or database
 client. Canonical responses are normal hits. External responses use
@@ -76,6 +70,10 @@ never fetched, stored, or transmitted by this plugin. On `distribution-2`/
 
 ## Release notes
 
+- **1.3.2** — Reduced the user-facing configuration to the MovieVault origin.
+  Local misses now use the existing privacy-safe technical fallback
+  automatically; operational intervals, limits, bucket behavior, and polling
+  remain bounded DiscVault core concerns.
 - **1.3.1** — Added a default-off technical-release fallback after local and
   optional hash-bucket misses. The plugin invokes only DiscVault core's bounded
   anonymous `release-technical-1` callback, maps canonical and visibly

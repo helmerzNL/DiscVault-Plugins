@@ -1,7 +1,7 @@
 {
   "id": "movievault_v2",
   "name": "MovieVault v2",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "manifestVersion": 1,
   "discVaultPluginApi": "next-1",
   "minimumDiscVaultVersion": "26.5.10",
@@ -32,77 +32,6 @@
         "default": "https://movies2.vaultstack.eu",
         "placeholder": "https://movies2.vaultstack.eu",
         "description": "Origin of the MovieVault v2 service. Do not include a path."
-      },
-      {
-        "name": "syncIntervalHours",
-        "label": "Sync interval (hours)",
-        "type": "number",
-        "required": false,
-        "default": 6,
-        "minimum": 1,
-        "maximum": 168
-      },
-      {
-        "name": "staleThresholdHours",
-        "label": "Stale threshold (hours)",
-        "type": "number",
-        "required": false,
-        "default": 48,
-        "minimum": 1,
-        "maximum": 720
-      },
-      {
-        "name": "requestTimeoutSeconds",
-        "label": "Request timeout (seconds)",
-        "type": "number",
-        "required": false,
-        "default": 20,
-        "minimum": 2,
-        "maximum": 120
-      },
-      {
-        "name": "maximumArtifactBytes",
-        "label": "Maximum sync artifact size (bytes)",
-        "type": "number",
-        "required": false,
-        "default": 134217728,
-        "minimum": 1024,
-        "maximum": 536870912
-      },
-      {
-        "name": "maximumResults",
-        "label": "Maximum lookup results",
-        "type": "number",
-        "required": false,
-        "default": 12,
-        "minimum": 1,
-        "maximum": 50
-      },
-      {
-        "name": "bucketFallback",
-        "label": "Allow anonymous bucket fallback",
-        "type": "boolean",
-        "required": false,
-        "default": false,
-        "description": "Query one anonymous hash bucket only when the local index misses."
-      },
-      {
-        "name": "technicalFallback",
-        "label": "Allow anonymous technical fallback",
-        "type": "boolean",
-        "required": false,
-        "default": false,
-        "description": "After local and optional bucket misses, ask MovieVault for one privacy-safe technical release resolution."
-      },
-      {
-        "name": "releaseDetailsPollAttempts",
-        "label": "Technical fallback poll attempts",
-        "type": "number",
-        "required": false,
-        "default": 4,
-        "minimum": 1,
-        "maximum": 10,
-        "description": "Maximum opaque result polls after MovieVault accepts a technical fallback request."
       }
     ],
     "secrets": []
