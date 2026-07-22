@@ -489,8 +489,6 @@ def _release_details_result(response):
 
 
 def _release_details_fallback(payload, context):
-    if not _bool_setting(context, "technicalFallback", False):
-        return None
     request = _release_details_request(payload)
     if request is None:
         return None

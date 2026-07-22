@@ -13,7 +13,7 @@ reproducible release packaging live together in this repository.
 | Blu-ray.com | 1.0.5 | 26.4.63 | Metadata |
 | DVDFr | 1.0.0 | 26.4.63 | Metadata |
 | MovieVault 26 | 1.8.1 | 26.4.63 | Metadata/receiver |
-| [MovieVault v2](plugins/movievault_v2/README.md) | 1.3.0 | 26.5.9 | Metadata |
+| [MovieVault v2](plugins/movievault_v2/README.md) | 1.3.2 | 26.5.10 | Metadata |
 | Plex | 1.0.1 | 26.4.63 | Library/list |
 | Jellyfin | 1.0.1 | 26.4.63 | Library/list |
 | Trakt | 1.0.3 | 26.4.63 | Personal list |

@@ -134,16 +134,9 @@ class MovieVaultV2PluginTests(unittest.TestCase):
             item["name"]: item
             for item in manifest["settingsSchema"]["settings"]
         }
+        self.assertEqual(set(settings), {"origin"})
         self.assertEqual(settings["origin"]["default"], "https://movies2.vaultstack.eu")
         self.assertEqual(settings["origin"]["type"], "url")
-        self.assertEqual(settings["syncIntervalHours"]["default"], 6)
-        self.assertEqual(settings["staleThresholdHours"]["default"], 48)
-        self.assertEqual(settings["requestTimeoutSeconds"]["default"], 20)
-        self.assertEqual(settings["maximumArtifactBytes"]["default"], 134217728)
-        self.assertEqual(settings["maximumResults"]["default"], 12)
-        self.assertFalse(settings["bucketFallback"]["default"])
-        self.assertFalse(settings["technicalFallback"]["default"])
-        self.assertEqual(settings["releaseDetailsPollAttempts"]["default"], 4)
 
     def test_manifest_declares_distribution_4_range_and_minimum_core(self):
         manifest = json.loads((PLUGIN_DIR / "manifest.json").read_text(encoding="utf-8"))
@@ -196,16 +189,22 @@ class MovieVaultV2PluginTests(unittest.TestCase):
 
     def test_bucket_fallback_is_disabled_by_default(self):
         bucket_calls = []
+        release_calls = []
         context = {
             "settings": {},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
             "movievaultV2BucketLookup": lambda request: bucket_calls.append(request) or {"results": [RELEASE]},
+            "movievaultV2ReleaseDetails": lambda request: (
+                release_calls.append(request)
+                or {"contractVersion": "release-technical-1", "status": "miss"}
+            ),
         }
 
         result = plugin.search_barcode({"barcode": BARCODE}, context)
 
         self.assertEqual(result["status"], "miss")
         self.assertEqual(bucket_calls, [])
+        self.assertEqual(release_calls, [{"barcode": BARCODE}])
 
     def test_enabled_bucket_fallback_filters_through_core_callback(self):
         context = {
@@ -219,28 +218,30 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(result["status"], "hit")
         self.assertEqual(result["releaseId"], RELEASE["releaseId"])
 
-    def test_technical_fallback_is_disabled_by_default(self):
+    def test_technical_fallback_runs_automatically_after_local_miss(self):
         calls = []
         context = {
             "settings": {},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
-            "movievaultV2ReleaseDetails": lambda request: calls.append(request),
+            "movievaultV2ReleaseDetails": lambda request: (
+                calls.append(request) or {"contractVersion": "release-technical-1", "status": "miss"}
+            ),
         }
 
         result = plugin.search_barcode({"barcode": BARCODE}, context)
 
         self.assertEqual(result["status"], "miss")
-        self.assertEqual(calls, [])
+        self.assertEqual(calls, [{"barcode": BARCODE}])
 
     def test_local_and_bucket_hits_do_not_invoke_technical_fallback(self):
         release_calls = []
         local_context = {
-            "settings": {"technicalFallback": True},
+            "settings": {},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": [RELEASE]},
             "movievaultV2ReleaseDetails": lambda request: release_calls.append(request),
         }
         bucket_context = {
-            "settings": {"bucketFallback": True, "technicalFallback": True},
+            "settings": {"bucketFallback": True},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
             "movievaultV2BucketLookup": lambda _request: {
                 "state": "remote_bucket",
@@ -256,10 +257,10 @@ class MovieVaultV2PluginTests(unittest.TestCase):
         self.assertEqual(bucket["status"], "hit")
         self.assertEqual(release_calls, [])
 
-    def test_enabled_technical_fallback_maps_external_hit_as_unreviewed(self):
+    def test_automatic_technical_fallback_maps_external_hit_as_unreviewed(self):
         calls = []
         context = {
-            "settings": {"technicalFallback": True},
+            "settings": {},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
             "movievaultV2ReleaseDetails": lambda request: (
                 calls.append(request) or EXTERNAL_RELEASE_DETAILS
@@ -297,7 +298,7 @@ class MovieVaultV2PluginTests(unittest.TestCase):
 
     def test_technical_fallback_maps_stable_failure_without_provider_data(self):
         context = {
-            "settings": {"technicalFallback": True},
+            "settings": {},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
             "movievaultV2ReleaseDetails": lambda _request: {
                 "contractVersion": "release-technical-1",
@@ -343,7 +344,6 @@ class MovieVaultV2PluginTests(unittest.TestCase):
             ],
         }
         context = {
-            "settings": {"technicalFallback": True},
             "movievaultV2Lookup": lambda _request: {"state": "current", "results": []},
             "movievaultV2ReleaseDetails": lambda _request: response,
         }
